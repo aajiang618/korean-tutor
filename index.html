@@ -1500,7 +1500,7 @@ function speakSlow(t){
   if(!('speechSynthesis' in window)||!t)return;
   speechSynthesis.cancel();
   const u=new SpeechSynthesisUtterance(t);
-  u.lang='ko-KR';u.rate=0.6;
+  u.lang='ko-KR';u.rate=koRate(0.8); // extra-slow variant, below the already-slowed Korean rate
   if(_koVoice)u.voice=_koVoice;
   speechSynthesis.speak(u);
 }
@@ -1535,13 +1535,15 @@ function ctApplyDiagnosis(txt,answer){
 /* ================= SPEECH: TTS ================= */
 let _koVoice=null,_enVoice=null,_voiceWarned=false;
 /* one deterministic voice per language, everywhere — ranked for natural cadence,
-   male preferred, and the SAME voice for both languages when one covers both */
-const MALE_VOICE_NAMES=['injoon','hyunsu','jimin','david','mark','guy','andrew','brian','christopher','eric','ryan','steffan','tony','aaron','daniel','fred'];
+   female preferred, and the SAME voice for both languages when one covers both */
+const FEMALE_VOICE_NAMES=['sunhi','sun-hi','heami','yuna','yujin','jiyu','seoyeon','jenny','aria','michelle','emma','ava','zira','samantha','libby','sonia','hazel','susan','karen','moira','tessa'];
+const MALE_VOICE_NAMES=['injoon','hyunsu','david','mark','guy','andrew','brian','christopher','eric','ryan','steffan','tony','daniel','fred','minjun','gook'];
 function rankVoice(v,lang){
   if(!v.lang||!v.lang.toLowerCase().startsWith(lang))return -1;
   const n=v.name.toLowerCase();let s=1;
   ['multilingual','natural','neural','premium','enhanced','siri','google'].forEach((k,i)=>{if(n.includes(k))s+=100-i*10});
-  if(MALE_VOICE_NAMES.some(m=>n.includes(m)))s+=65; // same male narrator everywhere
+  if(FEMALE_VOICE_NAMES.some(m=>n.includes(m)))s+=65; // same female narrator everywhere
+  if(MALE_VOICE_NAMES.some(m=>n.includes(m)))s-=200; // never pick a male voice if anything else exists
   return s;
 }
 function pickVoice(){
@@ -1556,11 +1558,13 @@ function pickVoice(){
     :'No Korean voice installed yet';
 }
 if('speechSynthesis' in window){pickVoice();speechSynthesis.onvoiceschanged=pickVoice}
+/* Korean is always read at 60% of the configured rate — learners need time to parse */
+function koRate(mult){return (((db&&db.settings&&db.settings.rate)||0.88)*0.6)*(mult||1)}
 function speakKo(text){
   if(!('speechSynthesis' in window)||!text)return;
   speechSynthesis.cancel();
   const u=new SpeechSynthesisUtterance(text);
-  u.lang='ko-KR';u.rate=(db&&db.settings&&db.settings.rate)||0.88;
+  u.lang='ko-KR';u.rate=koRate();
   if(_koVoice)u.voice=_koVoice;
   else if(!_voiceWarned){_voiceWarned=true;toast('Tip: install the Korean voice pack in Windows for real pronunciation')}
   speechSynthesis.speak(u);
@@ -2612,20 +2616,20 @@ function apStep(tk){
   apHighlight(idx);
   const next=gap=>setTimeout(()=>{if(_ap.on&&tk===_ap.token){_ap.pos++;apStep(tk)}},gap);
   if(_cl.tab==='prep'){
-    /* preparation reads slowly, then gives the English — unless KO-only immersion is on */
-    apSpeak(tk,s.ko,'ko-KR',(db.settings.rate||0.88)*0.8,()=>{
-      if(db.settings.prepKoOnly){next(900);return}
-      setTimeout(()=>{
+    /* preparation reads slowly, pauses so you can repeat aloud, then gives the English */
+    apSpeak(tk,s.ko,'ko-KR',koRate(),()=>{
+      if(db.settings.prepKoOnly){next(2500);return}
+      setTimeout(()=>{ // repeat-aloud pause before the translation
         if(!_ap.on||tk!==_ap.token)return;
         apSpeak(tk,s.en,'en-US',1,()=>next(800));
-      },450);
+      },2500);
     });
   }else{
     apSpeak(tk,s.en,'en-US',1,()=>{
       setTimeout(()=>{ // the recall pause: say it yourself
         if(!_ap.on||tk!==_ap.token)return;
         clRevealShow(idx); // the card flips as the answer is spoken
-        apSpeak(tk,s.ko,'ko-KR',db.settings.rate||0.88,()=>next(900));
+        apSpeak(tk,s.ko,'ko-KR',koRate(),()=>next(900));
       },2300);
     });
   }
@@ -2733,7 +2737,7 @@ function solSay(text,done){
     if(i>=parts.length){if(done)done();return}
     const p=parts[i++],ko=/[가-힣]/.test(p);
     const u=new SpeechSynthesisUtterance(p);
-    u.lang=ko?'ko-KR':'en-US';u.rate=ko?(db.settings.rate||0.88):1;u.pitch=1;
+    u.lang=ko?'ko-KR':'en-US';u.rate=ko?koRate():1;u.pitch=1;
     if(ko&&_koVoice)u.voice=_koVoice;
     if(!ko&&_enVoice)u.voice=_enVoice;
     u.onend=step;u.onerror=step;
@@ -2798,7 +2802,7 @@ function loopStep(){
     document.getElementById('npCluster').textContent=s.cluster}
   speechSynthesis.cancel();
   const u=new SpeechSynthesisUtterance(s.ko);
-  u.lang='ko-KR';u.rate=(db.settings.rate||0.88);
+  u.lang='ko-KR';u.rate=koRate();
   if(_koVoice)u.voice=_koVoice;
   u.onend=()=>{if(_loop.on)setTimeout(()=>{_loop.i++;loopStep()},900)};
   speechSynthesis.speak(u);
