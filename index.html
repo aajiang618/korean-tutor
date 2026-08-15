@@ -2431,8 +2431,7 @@ function renderClusterRun(){
         aria-label="Cluster size"><span><b id="szLbl">${size}</b> sentences</span></label>
     </div>
     ${_cl.selMode&&!_cl.edit?`<div class="sel-bar">
-      <button class="btn accent sm" onclick="apStartAt(null)">${svgi(ICO.play,'sic')}Play selected</button>
-      <span class="muted" id="selCount">${_cl.sel&&_cl.sel.size?_cl.sel.size+' selected — plays only these, on loop':'Tap sentences to select them'}</span>
+      <span class="muted" id="selCount">${_cl.sel&&_cl.sel.size?_cl.sel.size+' selected — hit play to loop just these':'Tap sentences to select them, then hit play'}</span>
     </div>`:''}
     ${size>c.sentences.length?`<p class="cl-hint">Wants ${size-c.sentences.length} more sentence${size-c.sentences.length===1?'':'s'} — ${db.settings.key?'tap ⊕ to generate them from your lessons.':'add an API key in Settings to generate them.'}</p>`:''}
     <p class="cl-hint">${_cl.edit
@@ -2494,7 +2493,7 @@ function clToggleSel(i){
   const row=document.getElementById('snt-'+i);
   if(row)row.classList.toggle('sel',_cl.sel.has(i));
   const lbl=document.getElementById('selCount');
-  if(lbl)lbl.textContent=_cl.sel.size?_cl.sel.size+' selected — plays only these, on loop':'Tap sentences to select them';
+  if(lbl)lbl.textContent=_cl.sel.size?_cl.sel.size+' selected — hit play to loop just these':'Tap sentences to select them, then hit play';
 }
 function clRevealCard(i){
   if(!_cl.revealed)_cl.revealed=new Set();
