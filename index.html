@@ -526,6 +526,13 @@
   .snt.editing .del svg{width:17px;height:17px}
   .snt.editing .del:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .snt.playing .s-ko{font-weight:700}
+  .snt.selable{padding-left:36px;position:relative}
+  .snt.selable .selmark{position:absolute;left:2px;top:50%;transform:translateY(-50%);width:22px;height:22px;
+    border-radius:50%;border:1.5px solid var(--muted);display:flex;align-items:center;justify-content:center;color:transparent}
+  .snt.selable .selmark svg{width:13px;height:13px}
+  .snt.selable.sel .selmark{background:var(--accent);border-color:var(--accent);color:#fff}
+  .sel-bar{display:flex;gap:12px;align-items:center;margin:12px 0 2px;flex-wrap:wrap}
+  .sel-bar .muted{font-size:13px}
   .now-playing{border:1px solid var(--hairline);background:var(--panel);padding:18px;margin-bottom:14px;text-align:center}
   .cl-sent{font-family:"Gowun Batang",serif;font-size:24px;line-height:1.55;margin:0}
   .cl-gloss{font-family:Spectral,serif;font-style:italic;font-weight:300;font-size:15px;color:var(--muted);margin:6px 0 0}
@@ -2414,7 +2421,8 @@ function renderClusterRun(){
       <button class="ico-btn primary" id="apPlayBtn" onclick="apToggle()" aria-label="${_ap.on?'Pause':'Play'}" title="${_ap.on?'Pause':'Play'}">${svgi(_ap.on?ICO.pause:ICO.play)}</button>
       <button class="ico-btn ${_ap.shuffle?'on':''}" onclick="apShuffle()" aria-pressed="${_ap.shuffle}" aria-label="Shuffle" title="Shuffle">${svgi(ICO.shuffle)}</button>
       <button class="ico-btn" onclick="logClusterSession()" aria-label="Log this sitting" title="Log this sitting">${svgi(ICO.check)}</button>
-      <button class="ico-btn" onclick="solOpen()" aria-label="Ask Sol" title="Ask Sol — or say “Hey Sol?” while it plays">${solFaceSVG(20)}</button>
+      ${_cl.edit?'':`<button class="ico-btn ${_cl.selMode?'on':''}" onclick="clToggleSelMode()" aria-pressed="${!!_cl.selMode}" aria-label="Select sentences to repeat" title="Select sentences to repeat">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M8.4 12.2l2.4 2.4 4.8-5"/></svg></button>`}
       ${db.settings.key?`<button class="ico-btn" onclick="aiGrowCluster('${c.id}')" aria-label="Add AI sentences" title="Add AI sentences from your lessons">${svgi(ICO.grow)}</button>`:''}
       ${c.source==='custom'?`<button class="ico-btn ${_cl.edit?'on':''}" onclick="clToggleEdit()" aria-pressed="${!!_cl.edit}" aria-label="Edit sentences" title="Edit sentences">${svgi(ICO.edit)}</button>`:''}
       ${_cl.tab==='prep'&&!_cl.edit?`<button class="sh-btn ${db.settings.prepKoOnly?'on':''}" onclick="togglePrepKo()" aria-pressed="${!!db.settings.prepKoOnly}" title="Play only the Korean during preparation — no English translations">KO only</button>`:''}
@@ -2422,9 +2430,15 @@ function renderClusterRun(){
         oninput="document.getElementById('szLbl').textContent=this.value" onchange="clSetSize(this.value)"
         aria-label="Cluster size"><span><b id="szLbl">${size}</b> sentences</span></label>
     </div>
+    ${_cl.selMode&&!_cl.edit?`<div class="sel-bar">
+      <button class="btn accent sm" onclick="apStartAt(null)">${svgi(ICO.play,'sic')}Play selected</button>
+      <span class="muted" id="selCount">${_cl.sel&&_cl.sel.size?_cl.sel.size+' selected — plays only these, on loop':'Tap sentences to select them'}</span>
+    </div>`:''}
     ${size>c.sentences.length?`<p class="cl-hint">Wants ${size-c.sentences.length} more sentence${size-c.sentences.length===1?'':'s'} — ${db.settings.key?'tap ⊕ to generate them from your lessons.':'add an API key in Settings to generate them.'}</p>`:''}
     <p class="cl-hint">${_cl.edit
       ?'Fix a line, delete it with the bin, or add more below — changes save as you type.'
+      :_cl.selMode
+      ?'Tap sentences to pick them, then hit play — only the selected ones repeat, on loop. Tap the select button again to go back to all.'
       :_cl.tab==='prep'
       ?(db.settings.prepKoOnly
         ?'Korean only, read slowly — straight down the list, on loop. Read along, repeat aloud. Tap a sentence to start there.'
@@ -2448,19 +2462,39 @@ function renderClusterRun(){
     </div>`
     :`<div class="snt-list" id="sntList">
       ${c.sentences.slice(0,chunk).map((s,i)=>{
+        const selCls=_cl.selMode?' selable'+(_cl.sel&&_cl.sel.has(i)?' sel':''):'';
         if(_cl.tab==='recall'){
           const rev=_cl.revealed&&_cl.revealed.has(i);
-          return `<div class="snt recall${rev?' rev':''}" id="snt-${i}" onclick="clRevealCard(${i})">
+          return `<div class="snt recall${rev?' rev':''}${selCls}" id="snt-${i}" onclick="${_cl.selMode?`clToggleSel(${i})`:`clRevealCard(${i})`}">
+            ${selMark()}
             <p class="s-en-q">${esc(s.en)}</p>
             <p class="s-ko${rev?'':' hid'}">${rev?esc(s.ko):'tap to reveal'}</p>
           </div>`;
         }
-        return `<div class="snt" id="snt-${i}" onclick="apPlayFrom(${i})">
+        return `<div class="snt${selCls}" id="snt-${i}" onclick="${_cl.selMode?`clToggleSel(${i})`:`apPlayFrom(${i})`}">
+          ${selMark()}
           <p class="s-ko">${esc(s.ko)}</p>
           <p class="s-en">${esc(s.en)}</p>
         </div>`;
       }).join('')}
     </div>`}`;
+}
+/* ---- multi-select: pick sentences Photos-style, playback loops just those ---- */
+function selMark(){
+  return _cl.selMode?`<span class="selmark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg></span>`:'';
+}
+function clToggleSelMode(){
+  _cl.selMode=!_cl.selMode;
+  if(!_cl.selMode)_cl.sel=new Set();
+  apStop();renderClusterRun();
+}
+function clToggleSel(i){
+  if(!_cl.sel)_cl.sel=new Set();
+  _cl.sel.has(i)?_cl.sel.delete(i):_cl.sel.add(i);
+  const row=document.getElementById('snt-'+i);
+  if(row)row.classList.toggle('sel',_cl.sel.has(i));
+  const lbl=document.getElementById('selCount');
+  if(lbl)lbl.textContent=_cl.sel.size?_cl.sel.size+' selected — plays only these, on loop':'Tap sentences to select them';
 }
 function clRevealCard(i){
   if(!_cl.revealed)_cl.revealed=new Set();
@@ -2568,12 +2602,17 @@ function logClusterSession(){
 
 /* ---- continuous audio engine ---- */
 function apOrder(from){
-  const n=clChunk(),o=[...Array(n).keys()];
+  const n=clChunk();
+  let o=[...Array(n).keys()];
+  /* selection active: the loop covers only the picked sentences */
+  if(_cl.selMode&&_cl.sel&&_cl.sel.size)o=o.filter(i=>_cl.sel.has(i));
   if(_ap.shuffle){
-    for(let i=n-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[o[i],o[j]]=[o[j],o[i]]}
-    if(from!=null){const k=o.indexOf(from);[o[0],o[k]]=[o[k],o[0]]}
+    for(let i=o.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[o[i],o[j]]=[o[j],o[i]]}
+    if(from!=null){const k=o.indexOf(from);if(k>0)[o[0],o[k]]=[o[k],o[0]]}
+    return o;
   }
-  return from!=null&&!_ap.shuffle?o.slice(from).concat(o.slice(0,from)):o;
+  if(from!=null){const k=o.indexOf(from);if(k>0)return o.slice(k).concat(o.slice(0,k))}
+  return o;
 }
 function apToggle(){_ap.on?apStop():apStartAt(null)}
 function apShuffle(){_ap.shuffle=!_ap.shuffle;if(_ap.on)apStartAt(null);else renderClusterRun()}
