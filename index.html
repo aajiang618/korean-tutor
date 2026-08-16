@@ -534,6 +534,9 @@
   .snt.selable.sel .selmark{background:var(--accent);border-color:var(--accent);color:#fff}
   .sel-bar{display:flex;gap:12px;align-items:center;margin:12px 0 2px;flex-wrap:wrap}
   .sel-bar .muted{font-size:13px}
+  #sntList .snt{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+  .snt.drag{background:var(--sheet);box-shadow:0 0 0 8px var(--sheet);border-radius:6px;
+    opacity:.9;transform:scale(1.02);position:relative;z-index:5;transition:transform .15s var(--easeOut)}
   .now-playing{border:1px solid var(--hairline);background:var(--panel);padding:18px;margin-bottom:14px;text-align:center}
   .cl-sent{font-family:"Gowun Batang",serif;font-size:24px;line-height:1.55;margin:0}
   .cl-gloss{font-family:Spectral,serif;font-style:italic;font-weight:300;font-size:15px;color:var(--muted);margin:6px 0 0}
@@ -2443,13 +2446,18 @@ function renderClusterRun(){
         aria-label="Cluster size"><span><b id="szLbl">${size}</b> sentences</span></label>
     </div>
     ${_cl.selMode&&!_cl.edit?`<div class="sel-bar">
-      <span class="muted" id="selCount">${_cl.sel&&_cl.sel.size?_cl.sel.size+' selected — hit play to loop just these':'Tap sentences to select them, then hit play'}</span>
+      <span class="muted" id="selCount">${_cl.sel&&_cl.sel.size?_cl.sel.size+' selected — hit play to loop just these':'Tap the circles to select, then hit play'}</span>
     </div>`:''}
+    ${!_cl.edit?`<div class="row" style="margin:10px 0;gap:8px;align-items:center">${_cl.addOpen?`
+      <input type="text" id="qaInput" placeholder="Type an English sentence…" style="flex:1;min-width:0" onkeydown="if(event.key==='Enter')clQuickAdd()">
+      <button class="btn accent sm" id="qaBtn" onclick="clQuickAdd()">Add</button>
+      <button class="btn ghost sm" onclick="clQuickAddToggle()" aria-label="Close">✕</button>`
+      :`<button class="btn ghost sm" onclick="clQuickAddToggle()">${svgi(ICO.plus,'sic')}Add sentence</button>`}</div>`:''}
     ${size>c.sentences.length?`<p class="cl-hint">Wants ${size-c.sentences.length} more sentence${size-c.sentences.length===1?'':'s'} — ${db.settings.key?'tap ⊕ to generate them from your lessons.':'add an API key in Settings to generate them.'}</p>`:''}
     <p class="cl-hint">${_cl.edit
       ?'Fix a line, delete it with the bin, or add more below — changes save as you type.'
       :_cl.selMode
-      ?'Tap sentences to pick them, then hit play — only the selected ones repeat, on loop. Tap the select button again to go back to all.'
+      ?'Tap the circles to pick sentences — play loops just those. Tapping a card starts playing from it and continues with your picks.'
       :_cl.tab==='prep'
       ?(db.settings.prepKoOnly
         ?'Korean only, read slowly — straight down the list, on loop. Repeat aloud in the pause. Tap a sentence to start there.'
@@ -2476,26 +2484,96 @@ function renderClusterRun(){
         const selCls=_cl.selMode?' selable'+(_cl.sel&&_cl.sel.has(i)?' sel':''):'';
         if(_cl.tab==='recall'){
           const rev=_cl.revealed&&_cl.revealed.has(i);
-          return `<div class="snt recall${rev?' rev':''}${selCls}" id="snt-${i}" onclick="${_cl.selMode?`clPlayRow(${i})`:`clRevealCard(${i})`}">
+          return `<div class="snt recall${rev?' rev':''}${selCls}" id="snt-${i}" onclick="${_cl.selMode?`apPlayFrom(${i})`:`clRevealCard(${i})`}">
             ${selMark(i)}
             <p class="s-en-q">${esc(s.en)}</p>
             <p class="s-ko${rev?'':' hid'}">${rev?esc(s.ko):'tap to reveal'}</p>
           </div>`;
         }
-        return `<div class="snt${selCls}" id="snt-${i}" onclick="${_cl.selMode?`clPlayRow(${i})`:`apPlayFrom(${i})`}">
+        return `<div class="snt${selCls}" id="snt-${i}" onclick="apPlayFrom(${i})">
           ${selMark(i)}
           <p class="s-en">${esc(s.en)}</p>
           <p class="s-ko">${esc(s.ko)}</p>
         </div>`;
       }).join('')}
     </div>`}`;
+  if(!_cl.edit)clAttachReorder();
 }
+/* ---- hold a sentence to drag it up or down and reorder the cluster ---- */
+let _drag={row:null,timer:null,y0:0,active:false,moved:false,cancelFn:null};
+function clAttachReorder(){
+  const list=document.getElementById('sntList');if(!list)return;
+  list.querySelectorAll('.snt').forEach(row=>row.addEventListener('pointerdown',e=>dragDown(e,row)));
+}
+function dragDown(e,row){
+  _drag.row=row;_drag.y0=e.clientY;_drag.moved=false;_drag.active=false;
+  clearTimeout(_drag.timer);
+  _drag.timer=setTimeout(()=>dragStart(row),450);
+  const cancel=ev=>{if(!_drag.active&&Math.abs(ev.clientY-_drag.y0)>10){clearTimeout(_drag.timer)}};
+  _drag.cancelFn=cancel;
+  document.addEventListener('pointermove',cancel);
+  document.addEventListener('pointerup',dragEnd,{once:true});
+  document.addEventListener('pointercancel',dragEnd,{once:true});
+}
+function dragStart(row){
+  _drag.active=true;apStop();
+  row.classList.add('drag');
+  if(navigator.vibrate)navigator.vibrate(25);
+  document.addEventListener('pointermove',dragMove);
+  document.addEventListener('touchmove',dragBlock,{passive:false});
+}
+function dragBlock(e){e.preventDefault()}
+function dragMove(e){
+  const row=_drag.row;if(!row||!_drag.active)return;
+  const prev=row.previousElementSibling,nx=row.nextElementSibling;
+  if(prev&&prev.classList.contains('snt')){
+    const r=prev.getBoundingClientRect();
+    if(e.clientY<r.top+r.height/2){row.parentNode.insertBefore(row,prev);_drag.moved=true;return}
+  }
+  if(nx&&nx.classList.contains('snt')){
+    const r=nx.getBoundingClientRect();
+    if(e.clientY>r.top+r.height/2){row.parentNode.insertBefore(nx,row);_drag.moved=true}
+  }
+}
+function dragEnd(){
+  clearTimeout(_drag.timer);
+  if(_drag.cancelFn){document.removeEventListener('pointermove',_drag.cancelFn);_drag.cancelFn=null}
+  document.removeEventListener('pointermove',dragMove);
+  document.removeEventListener('touchmove',dragBlock);
+  const row=_drag.row,was=_drag.active,moved=_drag.moved;
+  _drag.row=null;_drag.active=false;_drag.moved=false;
+  if(!was)return; // plain tap — the normal click goes through
+  if(row)row.classList.remove('drag');
+  /* eat the click that trails the drag so it doesn't also trigger play/reveal */
+  const eat=ev=>{ev.stopPropagation();ev.preventDefault();document.removeEventListener('click',eat,true)};
+  document.addEventListener('click',eat,true);
+  setTimeout(()=>document.removeEventListener('click',eat,true),400);
+  if(moved)dragCommit();
+}
+function dragCommit(){
+  const c=_cl.c,chunk=clChunk();
+  const order=[...document.querySelectorAll('#sntList .snt')].map(r=>+r.id.slice(4));
+  c.sentences=order.map(i=>c.sentences[i]).concat(c.sentences.slice(chunk));
+  /* selection follows the sentences to their new spots */
+  if(_cl.sel&&_cl.sel.size){
+    const remap=new Set();
+    order.forEach((old,pos)=>{if(_cl.sel.has(old))remap.add(pos)});
+    _cl.sel=remap;
+  }
+  if(_cl.revealed&&_cl.revealed.size){
+    const rr=new Set();
+    order.forEach((old,pos)=>{if(_cl.revealed.has(old))rr.add(pos)});
+    _cl.revealed=rr;
+  }
+  save();uiSave();renderClusterRun();
+  toast('Order updated');
+}
+
 /* ---- multi-select: pick sentences Photos-style, playback loops just those ---- */
 function selMark(i){
   /* only this circle toggles selection — tapping the card itself plays the audio */
   return _cl.selMode?`<span class="selmark" onclick="event.stopPropagation();clToggleSel(${i})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg></span>`:'';
 }
-function clPlayRow(i){speakKo(_cl.c.sentences[i].ko)}
 function clToggleSelMode(){
   _cl.selMode=!_cl.selMode;
   if(!_cl.selMode)_cl.sel=new Set();
@@ -2507,8 +2585,30 @@ function clToggleSel(i){
   const row=document.getElementById('snt-'+i);
   if(row)row.classList.toggle('sel',_cl.sel.has(i));
   const lbl=document.getElementById('selCount');
-  if(lbl)lbl.textContent=_cl.sel.size?_cl.sel.size+' selected — hit play to loop just these':'Tap sentences to select them, then hit play';
+  if(lbl)lbl.textContent=_cl.sel.size?_cl.sel.size+' selected — hit play to loop just these':'Tap the circles to select, then hit play';
   uiSave();
+}
+/* ---- quick add: type English (or Korean), AI fills in the other side ---- */
+function clQuickAddToggle(){
+  _cl.addOpen=!_cl.addOpen;renderClusterRun();
+  if(_cl.addOpen){const e=document.getElementById('qaInput');if(e)e.focus()}
+}
+async function clQuickAdd(){
+  const inp=document.getElementById('qaInput'),btn=document.getElementById('qaBtn');
+  const v=(inp&&inp.value||'').trim();if(!v)return;
+  let pair=parsePairLine(v)||{ko:'',en:v};
+  if(!pair.ko||!pair.en){
+    if(!db.settings.key){toast('Add an API key in Settings so I can translate it');return}
+    if(btn){btn.disabled=true;btn.textContent='Translating…'}
+    try{const done=await aiCompletePairs([pair]);if(done&&done[0])pair=done[0]}
+    catch(e){toast('Translation failed: '+e.message);if(btn){btn.disabled=false;btn.textContent='Add'}return}
+    if(!pair.ko||!pair.en){toast('Could not translate that one');if(btn){btn.disabled=false;btn.textContent='Add'}return}
+  }
+  const c=_cl.c;
+  c.sentences.push({ko:pair.ko,en:pair.en});
+  c.size=Math.max(c.size||20,c.sentences.length); // make sure the new line is in the visible chunk
+  save();_cl.addOpen=false;renderClusterRun();
+  toast('Added: '+pair.ko);
 }
 function clRevealCard(i){
   if(!_cl.revealed)_cl.revealed=new Set();
@@ -2623,10 +2723,15 @@ function apOrder(from){
   if(_cl.selMode&&_cl.sel&&_cl.sel.size)o=o.filter(i=>_cl.sel.has(i));
   if(_ap.shuffle){
     for(let i=o.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[o[i],o[j]]=[o[j],o[i]]}
-    if(from!=null){const k=o.indexOf(from);if(k>0)[o[0],o[k]]=[o[k],o[0]]}
+    if(from!=null){const k=o.indexOf(from);if(k>0)[o[0],o[k]]=[o[k],o[0]];else if(k<0)o.unshift(from)}
     return o;
   }
-  if(from!=null){const k=o.indexOf(from);if(k>0)return o.slice(k).concat(o.slice(0,k))}
+  if(from!=null){
+    const k=o.indexOf(from);
+    if(k>0)return o.slice(k).concat(o.slice(0,k));
+    /* starting on an unselected sentence: play it once, then carry on with the selected ones after it */
+    if(k<0)return [from].concat(o.filter(i=>i>from),o.filter(i=>i<from));
+  }
   return o;
 }
 function apToggle(){_ap.on?apStop():apStartAt(null)}
