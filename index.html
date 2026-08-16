@@ -509,7 +509,7 @@
   .snt{padding:14px 2px;border-top:1px solid var(--hairline);cursor:pointer}
   .snt:first-child{border-top:0}
   .snt .s-ko{font-family:"Gowun Batang",serif;font-size:21px;line-height:1.5;margin:0}
-  .snt .s-en{font-family:Spectral,serif;font-style:italic;font-weight:300;font-size:14px;color:var(--muted);margin:2px 0 0}
+  .snt .s-en{font-family:Spectral,serif;font-style:italic;font-weight:300;font-size:14px;color:var(--muted);margin:0 0 3px}
   .snt .s-en-q{font-size:16px;font-weight:600;margin:0;line-height:1.5}
   .snt.recall .s-ko{font-size:20px;margin-top:4px}
   .snt.recall .s-ko.hid{font-family:Karla;font-size:11px;font-weight:700;letter-spacing:.1em;
@@ -1576,8 +1576,8 @@ function pickVoice(){
     :'No Korean voice installed yet';
 }
 if('speechSynthesis' in window){pickVoice();speechSynthesis.onvoiceschanged=pickVoice}
-/* Korean is always read at 60% of the configured rate — learners need time to parse */
-function koRate(mult){return (((db&&db.settings&&db.settings.rate)||0.88)*0.6)*(mult||1)}
+/* Korean is always read far below the configured rate — learners need time to parse */
+function koRate(mult){return (((db&&db.settings&&db.settings.rate)||0.88)*0.45)*(mult||1)}
 function speakKo(text){
   if(!('speechSynthesis' in window)||!text)return;
   speechSynthesis.cancel();
@@ -2433,7 +2433,6 @@ function renderClusterRun(){
     <div class="cl-ctl">
       <button class="ico-btn primary" id="apPlayBtn" onclick="apToggle()" aria-label="${_ap.on?'Pause':'Play'}" title="${_ap.on?'Pause':'Play'}">${svgi(_ap.on?ICO.pause:ICO.play)}</button>
       <button class="ico-btn ${_ap.shuffle?'on':''}" onclick="apShuffle()" aria-pressed="${_ap.shuffle}" aria-label="Shuffle" title="Shuffle">${svgi(ICO.shuffle)}</button>
-      <button class="ico-btn" onclick="logClusterSession()" aria-label="Log this sitting" title="Log this sitting">${svgi(ICO.check)}</button>
       ${_cl.edit?'':`<button class="ico-btn ${_cl.selMode?'on':''}" onclick="clToggleSelMode()" aria-pressed="${!!_cl.selMode}" aria-label="Select sentences to repeat" title="Select sentences to repeat">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M8.4 12.2l2.4 2.4 4.8-5"/></svg></button>`}
       ${db.settings.key?`<button class="ico-btn" onclick="aiGrowCluster('${c.id}')" aria-label="Add AI sentences" title="Add AI sentences from your lessons">${svgi(ICO.grow)}</button>`:''}
@@ -2453,8 +2452,8 @@ function renderClusterRun(){
       ?'Tap sentences to pick them, then hit play — only the selected ones repeat, on loop. Tap the select button again to go back to all.'
       :_cl.tab==='prep'
       ?(db.settings.prepKoOnly
-        ?'Korean only, read slowly — straight down the list, on loop. Read along, repeat aloud. Tap a sentence to start there.'
-        :'Korean read slowly, then its English — straight down the list, on loop. Read along, repeat aloud. Tap a sentence to start there.')
+        ?'Korean only, read slowly — straight down the list, on loop. Repeat aloud in the pause. Tap a sentence to start there.'
+        :'English first, then the Korean read slowly — repeat aloud in the pause. On loop; tap a sentence to start there.')
       :'English → pause → say it → Korean confirms. Tap a sentence to start there.'}</p>
     ${_cl.edit?`
     <div class="snt-list">
@@ -2485,8 +2484,8 @@ function renderClusterRun(){
         }
         return `<div class="snt${selCls}" id="snt-${i}" onclick="${_cl.selMode?`clPlayRow(${i})`:`apPlayFrom(${i})`}">
           ${selMark(i)}
-          <p class="s-ko">${esc(s.ko)}</p>
           <p class="s-en">${esc(s.en)}</p>
+          <p class="s-ko">${esc(s.ko)}</p>
         </div>`;
       }).join('')}
     </div>`}`;
@@ -2604,15 +2603,16 @@ function deleteCluster(){
   toast('Cluster deleted');renderClusters();
 }
 function clStartLearning(){_cl.c.started=Date.now();save();renderClusterRun()}
-function logClusterSession(){
-  const c=_cl.c;
-  if(!c.started){toast('Start the cluster first');return}
+/* sittings log themselves: one full pass of the playback loop credits the current slot */
+function autoLogSitting(){
+  const c=_cl.c;if(!c||!c.started)return;
   if(!c.sessions||c.sessions.date!==dayKey())c.sessions={date:dayKey(),slots:[]};
   const sl=todaySlot();
-  if(!c.sessions.slots.includes(sl))c.sessions.slots.push(sl);
+  if(c.sessions.slots.includes(sl))return; // already credited this slot today
+  c.sessions.slots.push(sl);
   c.lastReview=Date.now();c.reviews=(c.reviews||0)+1;
   addXP(_cl.tab==='recall'?12:8);
-  save();toast('Sitting logged — '+sl);renderClusterRun();
+  save();toast('Sitting logged — '+sl);
 }
 
 /* ---- continuous audio engine ---- */
@@ -2665,19 +2665,22 @@ function apSpeak(tk,text,lang,rate,done){
 }
 function apStep(tk){
   if(!_ap.on||tk!==_ap.token)return;
-  if(_ap.pos>=_ap.order.length){_ap.order=apOrder(null);_ap.pos=0} // loop forever
+  if(_ap.pos>=_ap.order.length){autoLogSitting();_ap.order=apOrder(null);_ap.pos=0} // loop forever; a full pass logs the sitting
   const idx=_ap.order[_ap.pos],s=_cl.c.sentences[idx];
   apHighlight(idx);
   const next=gap=>setTimeout(()=>{if(_ap.on&&tk===_ap.token){_ap.pos++;apStep(tk)}},gap);
   if(_cl.tab==='prep'){
-    /* preparation reads slowly, pauses so you can repeat aloud, then gives the English */
-    apSpeak(tk,s.ko,'ko-KR',koRate(),()=>{
-      if(db.settings.prepKoOnly){next(2500);return}
-      setTimeout(()=>{ // repeat-aloud pause before the translation
-        if(!_ap.on||tk!==_ap.token)return;
-        apSpeak(tk,s.en,'en-US',1,()=>next(800));
-      },2500);
-    });
+    /* English first, then the Korean read slowly, then a repeat-aloud pause */
+    if(db.settings.prepKoOnly){
+      apSpeak(tk,s.ko,'ko-KR',koRate(),()=>next(2500));
+    }else{
+      apSpeak(tk,s.en,'en-US',1,()=>{
+        setTimeout(()=>{
+          if(!_ap.on||tk!==_ap.token)return;
+          apSpeak(tk,s.ko,'ko-KR',koRate(),()=>next(2500));
+        },350);
+      });
+    }
   }else{
     apSpeak(tk,s.en,'en-US',1,()=>{
       setTimeout(()=>{ // the recall pause: say it yourself
