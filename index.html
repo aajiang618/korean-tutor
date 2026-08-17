@@ -507,7 +507,7 @@
   .cl-hint{font-size:12.5px;color:var(--muted);margin:8px 0 4px}
   .snt-list{margin-top:6px}
   .snt{padding:14px 2px;border-top:1px solid var(--hairline);cursor:pointer}
-  .snt:first-child{border-top:0}
+  .swipe:first-child .snt{border-top:0}
   .snt .s-ko{font-family:"Gowun Batang",serif;font-size:21px;line-height:1.5;margin:0}
   .snt .s-en{font-family:Spectral,serif;font-style:italic;font-weight:300;font-size:14px;color:var(--muted);margin:0 0 3px}
   .snt .s-en-q{font-size:16px;font-weight:600;margin:0;line-height:1.5}
@@ -535,8 +535,19 @@
   .sel-bar{display:flex;gap:12px;align-items:center;margin:12px 0 2px;flex-wrap:wrap}
   .sel-bar .muted{font-size:13px}
   #sntList .snt{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
-  .snt.drag{background:var(--sheet);box-shadow:0 0 0 8px var(--sheet);border-radius:6px;
-    opacity:.9;transform:scale(1.02);position:relative;z-index:5;transition:transform .15s var(--easeOut)}
+  /* each row rides on a swipe track: delete sits behind, the card slides off it */
+  .swipe{position:relative;overflow:hidden;touch-action:pan-y}
+  .swipe .snt{background:var(--page);position:relative;z-index:1;will-change:transform}
+  .swipe-del{position:absolute;inset:0;display:flex;justify-content:flex-end;background:var(--bad)}
+  .del-act{border:0;background:none;color:#fff;font-family:Karla;font-weight:700;font-size:11.5px;
+    letter-spacing:.09em;text-transform:uppercase;width:104px;cursor:pointer;display:grid;place-items:center;
+    transition:background .18s var(--easeOut)}
+  .del-act.armed{background:rgba(0,0,0,.22);font-size:13px}
+  /* held card lifts off the list; neighbours glide around it */
+  .swipe.drag{overflow:visible;z-index:5}
+  .swipe.drag .snt{transform:scale(1.025);border-radius:8px;border-top-color:transparent;
+    box-shadow:0 12px 28px rgba(0,0,0,.17);transition:transform .2s var(--easeOut),box-shadow .2s var(--easeOut)}
+  .swipe.removing{overflow:hidden;transition:height .3s var(--easeOut),opacity .24s var(--easeOut)}
   .now-playing{border:1px solid var(--hairline);background:var(--panel);padding:18px;margin-bottom:14px;text-align:center}
   .cl-sent{font-family:"Gowun Batang",serif;font-size:24px;line-height:1.55;margin:0}
   .cl-gloss{font-family:Spectral,serif;font-style:italic;font-weight:300;font-size:15px;color:var(--muted);margin:6px 0 0}
@@ -2463,6 +2474,7 @@ function renderClusterRun(){
         ?'Korean only, read slowly — straight down the list, on loop. Repeat aloud in the pause. Tap a sentence to start there.'
         :'English first, then the Korean read slowly — repeat aloud in the pause. On loop; tap a sentence to start there.')
       :'English → pause → say it → Korean confirms. Tap a sentence to start there.'}</p>
+    ${_cl.edit?'':`<p class="cl-hint" style="opacity:.75">Hold a sentence to drag it into a new spot · swipe it left to remove it</p>`}
     ${_cl.edit?`
     <div class="snt-list">
       ${c.sentences.map((s,i)=>`<div class="snt editing">
@@ -2482,77 +2494,183 @@ function renderClusterRun(){
     :`<div class="snt-list" id="sntList">
       ${c.sentences.slice(0,chunk).map((s,i)=>{
         const selCls=_cl.selMode?' selable'+(_cl.sel&&_cl.sel.has(i)?' sel':''):'';
-        if(_cl.tab==='recall'){
-          const rev=_cl.revealed&&_cl.revealed.has(i);
-          return `<div class="snt recall${rev?' rev':''}${selCls}" id="snt-${i}" onclick="${_cl.selMode?`apPlayFrom(${i})`:`clRevealCard(${i})`}">
-            ${selMark(i)}
-            <p class="s-en-q">${esc(s.en)}</p>
-            <p class="s-ko${rev?'':' hid'}">${rev?esc(s.ko):'tap to reveal'}</p>
-          </div>`;
-        }
-        return `<div class="snt${selCls}" id="snt-${i}" onclick="apPlayFrom(${i})">
-          ${selMark(i)}
-          <p class="s-en">${esc(s.en)}</p>
-          <p class="s-ko">${esc(s.ko)}</p>
+        const rev=_cl.revealed&&_cl.revealed.has(i);
+        const card=_cl.tab==='recall'
+          ?`<div class="snt recall${rev?' rev':''}${selCls}" id="snt-${i}" onclick="${_cl.selMode?`apPlayFrom(${i})`:`clRevealCard(${i})`}">
+              ${selMark(i)}
+              <p class="s-en-q">${esc(s.en)}</p>
+              <p class="s-ko${rev?'':' hid'}">${rev?esc(s.ko):'tap to reveal'}</p>
+            </div>`
+          :`<div class="snt${selCls}" id="snt-${i}" onclick="apPlayFrom(${i})">
+              ${selMark(i)}
+              <p class="s-en">${esc(s.en)}</p>
+              <p class="s-ko">${esc(s.ko)}</p>
+            </div>`;
+        return `<div class="swipe" data-i="${i}">
+          <div class="swipe-del"><button type="button" class="del-act" onclick="event.stopPropagation();clDelStep(${i},this)">Delete</button></div>
+          ${card}
         </div>`;
       }).join('')}
     </div>`}`;
   if(!_cl.edit)clAttachReorder();
 }
-/* ---- hold a sentence to drag it up or down and reorder the cluster ---- */
-let _drag={row:null,timer:null,y0:0,active:false,moved:false,cancelFn:null};
-function clAttachReorder(){
-  const list=document.getElementById('sntList');if(!list)return;
-  list.querySelectorAll('.snt').forEach(row=>row.addEventListener('pointerdown',e=>dragDown(e,row)));
-}
-function dragDown(e,row){
-  _drag.row=row;_drag.y0=e.clientY;_drag.moved=false;_drag.active=false;
-  clearTimeout(_drag.timer);
-  _drag.timer=setTimeout(()=>dragStart(row),450);
-  const cancel=ev=>{if(!_drag.active&&Math.abs(ev.clientY-_drag.y0)>10){clearTimeout(_drag.timer)}};
-  _drag.cancelFn=cancel;
-  document.addEventListener('pointermove',cancel);
-  document.addEventListener('pointerup',dragEnd,{once:true});
-  document.addEventListener('pointercancel',dragEnd,{once:true});
-}
-function dragStart(row){
-  _drag.active=true;apStop();
-  row.classList.add('drag');
-  if(navigator.vibrate)navigator.vibrate(25);
-  document.addEventListener('pointermove',dragMove);
-  document.addEventListener('touchmove',dragBlock,{passive:false});
-}
-function dragBlock(e){e.preventDefault()}
-function dragMove(e){
-  const row=_drag.row;if(!row||!_drag.active)return;
-  const prev=row.previousElementSibling,nx=row.nextElementSibling;
-  if(prev&&prev.classList.contains('snt')){
-    const r=prev.getBoundingClientRect();
-    if(e.clientY<r.top+r.height/2){row.parentNode.insertBefore(row,prev);_drag.moved=true;return}
-  }
-  if(nx&&nx.classList.contains('snt')){
-    const r=nx.getBoundingClientRect();
-    if(e.clientY>r.top+r.height/2){row.parentNode.insertBefore(nx,row);_drag.moved=true}
-  }
-}
-function dragEnd(){
-  clearTimeout(_drag.timer);
-  if(_drag.cancelFn){document.removeEventListener('pointermove',_drag.cancelFn);_drag.cancelFn=null}
-  document.removeEventListener('pointermove',dragMove);
-  document.removeEventListener('touchmove',dragBlock);
-  const row=_drag.row,was=_drag.active,moved=_drag.moved;
-  _drag.row=null;_drag.active=false;_drag.moved=false;
-  if(!was)return; // plain tap — the normal click goes through
-  if(row)row.classList.remove('drag');
-  /* eat the click that trails the drag so it doesn't also trigger play/reveal */
+/* ---- one gesture engine per row: hold to reorder (springy), swipe left to delete ---- */
+const SPRING='cubic-bezier(.34,1.4,.64,1)',DELW=104;
+let _drag={wrap:null,timer:null,x0:0,y0:0,baseX:0,grabY:0,shift:0,
+           active:false,moved:false,mode:null,open:null,armTimer:null};
+function buzz(ms){try{if(navigator.vibrate)navigator.vibrate(ms)}catch(e){}}
+function sntOf(w){return w.querySelector('.snt')}
+function curX(el){const m=/translateX\((-?[\d.]+)px\)/.exec(el.style.transform||'');return m?+m[1]:0}
+function eatClick(){ /* swallow the click that trails a gesture */
   const eat=ev=>{ev.stopPropagation();ev.preventDefault();document.removeEventListener('click',eat,true)};
   document.addEventListener('click',eat,true);
   setTimeout(()=>document.removeEventListener('click',eat,true),400);
-  if(moved)dragCommit();
+}
+function clAttachReorder(){
+  const list=document.getElementById('sntList');if(!list)return;
+  _drag.open=null;
+  list.querySelectorAll('.swipe').forEach(w=>w.addEventListener('pointerdown',e=>rowDown(e,w)));
+}
+function rowDown(e,w){
+  if(e.button)return;
+  if(e.target.closest('.del-act'))return; // the delete button runs its own two-step
+  if(_drag.open&&_drag.open!==w)swipeClose(_drag.open); // only one row open at a time
+  _drag.wrap=w;_drag.x0=e.clientX;_drag.y0=e.clientY;_drag.grabY=e.clientY;
+  _drag.baseX=curX(sntOf(w));_drag.shift=0;
+  _drag.mode=null;_drag.active=false;_drag.moved=false;
+  clearTimeout(_drag.timer);
+  _drag.timer=setTimeout(dragStart,450);
+  document.addEventListener('pointermove',rowMove);
+  document.addEventListener('pointerup',rowUp,{once:true});
+  document.addEventListener('pointercancel',rowUp,{once:true});
+}
+function rowMove(e){
+  const w=_drag.wrap;if(!w)return;
+  if(_drag.mode==='drag')return dragMove(e);
+  if(_drag.mode==='swipe')return swipeMove(e.clientX-_drag.x0);
+  if(_drag.mode==='scroll')return;
+  const dx=e.clientX-_drag.x0,dy=e.clientY-_drag.y0;
+  if(Math.abs(dx)>8&&Math.abs(dx)>Math.abs(dy)){ // sideways → swipe to delete
+    clearTimeout(_drag.timer);_drag.mode='swipe';
+    sntOf(w).style.transition='none';
+    swipeMove(dx);
+  }else if(Math.abs(dy)>10){ // vertical before the hold lands → the page scrolls
+    clearTimeout(_drag.timer);_drag.mode='scroll';
+  }
+}
+function rowUp(){
+  clearTimeout(_drag.timer);
+  document.removeEventListener('pointermove',rowMove);
+  const w=_drag.wrap,mode=_drag.mode,active=_drag.active,moved=_drag.moved;
+  _drag.wrap=null;_drag.mode=null;_drag.active=false;_drag.moved=false;
+  if(!w)return;
+  if(active){dragDrop(w,moved);eatClick();return}
+  if(mode==='swipe'){
+    (curX(sntOf(w))<-DELW/2?swipeOpen:swipeClose)(w);
+    eatClick();return;
+  }
+  if(!mode&&_drag.open===w){swipeClose(w);eatClick()} // tap an open row → just close it
+}
+/* --- swipe left to reveal Delete --- */
+function swipeMove(dx){
+  const el=sntOf(_drag.wrap);if(!el)return;
+  el.style.transform='translateX('+Math.max(-DELW,Math.min(0,_drag.baseX+dx))+'px)';
+}
+function swipeOpen(w){
+  const el=sntOf(w);
+  el.style.transition='transform .3s '+SPRING;el.style.transform='translateX(-'+DELW+'px)';
+  _drag.open=w;
+  buzz(10);
+}
+function swipeClose(w){
+  const el=sntOf(w);if(!el)return;
+  el.style.transition='transform .3s '+SPRING;el.style.transform='translateX(0px)';
+  const b=w.querySelector('.del-act');
+  if(b){b.classList.remove('armed');b.textContent='Delete'}
+  clearTimeout(_drag.armTimer);
+  if(_drag.open===w)_drag.open=null;
+}
+/* --- two-step delete: Delete → Sure? → gone --- */
+function clDelStep(i,btn){
+  if(!btn.classList.contains('armed')){
+    btn.classList.add('armed');btn.textContent='Sure?';
+    buzz(15);
+    clearTimeout(_drag.armTimer);
+    _drag.armTimer=setTimeout(()=>{btn.classList.remove('armed');btn.textContent='Delete'},4000);
+    return;
+  }
+  clearTimeout(_drag.armTimer);
+  clRemoveSentence(i,btn.closest('.swipe'));
+}
+function clRemoveSentence(i,w){
+  const c=_cl.c;if(!c||!w)return;
+  apStop();
+  w.style.height=w.offsetHeight+'px';w.classList.add('removing');
+  void w.offsetWidth;
+  w.style.height='0px';w.style.opacity='0';
+  setTimeout(()=>{
+    c.sentences.splice(i,1);
+    if(c.size>c.sentences.length)c.size=c.sentences.length;
+    const shift=set=>{const n=new Set();(set||new Set()).forEach(v=>{if(v<i)n.add(v);else if(v>i)n.add(v-1)});return n};
+    _cl.sel=shift(_cl.sel);_cl.revealed=shift(_cl.revealed);
+    _drag.open=null;
+    save();uiSave();renderClusterRun();
+    toast('Sentence removed');
+  },300);
+}
+/* --- hold to reorder: the card follows the finger, neighbours FLIP around it --- */
+function dragStart(){
+  const w=_drag.wrap;if(!w)return;
+  if(_drag.open)swipeClose(_drag.open);
+  const el=sntOf(w);el.style.transition='';el.style.transform=''; // let the lift styling take over
+  _drag.mode='drag';_drag.active=true;apStop();
+  w.classList.add('drag');w.style.transition='none';
+  buzz(25);
+  document.addEventListener('touchmove',dragBlock,{passive:false});
+}
+function dragBlock(e){e.preventDefault()}
+function dragFollow(e){
+  _drag.wrap.style.transform='translateY('+(e.clientY-_drag.grabY-_drag.shift)+'px)';
+}
+function dragMove(e){
+  const w=_drag.wrap;if(!w||!_drag.active)return;
+  dragFollow(e);
+  const rect=w.getBoundingClientRect();
+  const prev=w.previousElementSibling,nx=w.nextElementSibling;
+  if(prev&&prev.classList.contains('swipe')){
+    const r=prev.getBoundingClientRect();
+    if(rect.top<r.top+r.height/2){flipSwap(w,prev,true);dragFollow(e);return}
+  }
+  if(nx&&nx.classList.contains('swipe')){
+    const r=nx.getBoundingClientRect();
+    if(rect.bottom>r.top+r.height/2){flipSwap(w,nx,false);dragFollow(e)}
+  }
+}
+/* move in the DOM, then animate the displaced neighbour from where it was to where it lands */
+function flipSwap(w,other,up){
+  const before=w.getBoundingClientRect().top,oBefore=other.getBoundingClientRect().top;
+  up?w.parentNode.insertBefore(w,other):w.parentNode.insertBefore(other,w);
+  _drag.shift+=w.getBoundingClientRect().top-before;
+  _drag.moved=true;
+  const d=oBefore-other.getBoundingClientRect().top;
+  other.style.transition='none';other.style.transform='translateY('+d+'px)';
+  void other.offsetWidth;
+  other.style.transition='transform .26s '+SPRING;other.style.transform='translateY(0px)';
+}
+function dragDrop(w,moved){
+  document.removeEventListener('touchmove',dragBlock);
+  w.style.transition='transform .3s '+SPRING;w.style.transform='translateY(0px)';
+  w.classList.remove('drag');
+  const list=document.getElementById('sntList');
+  if(list)list.style.pointerEvents='none'; // stale indices during the settle
+  setTimeout(()=>{
+    if(list)list.style.pointerEvents='';
+    if(moved)dragCommit();else{w.style.transition='';w.style.transform=''}
+  },300);
 }
 function dragCommit(){
   const c=_cl.c,chunk=clChunk();
-  const order=[...document.querySelectorAll('#sntList .snt')].map(r=>+r.id.slice(4));
+  const order=[...document.querySelectorAll('#sntList .swipe')].map(r=>+r.dataset.i);
   c.sentences=order.map(i=>c.sentences[i]).concat(c.sentences.slice(chunk));
   /* selection follows the sentences to their new spots */
   if(_cl.sel&&_cl.sel.size){
