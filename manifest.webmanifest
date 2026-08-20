@@ -5,6 +5,9 @@
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "categories": ["education"],
   "background_color": "#EFF1EC",
   "theme_color": "#EFF1EC",
   "icons": [

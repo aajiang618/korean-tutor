@@ -31,11 +31,17 @@
     --ease-drawer:cubic-bezier(0.32,0.72,0,1);
   }
   *{box-sizing:border-box}
-  html,body{margin:0}
+  html,body{margin:0;overscroll-behavior:none} /* no rubber-band past the app when installed */
   body{
     font-family:Karla,"Gowun Batang",system-ui,sans-serif;
     color:var(--ink);min-height:100dvh;-webkit-font-smoothing:antialiased;
     background-color:var(--page);
+    -webkit-tap-highlight-color:transparent;
+  }
+  /* installed on a phone: own the notch and the home bar like a native app */
+  @media(max-width:519px){
+    .main{padding-top:calc(24px + env(safe-area-inset-top))}
+    .shell{height:100dvh}
   }
   .ko,[lang=ko]{font-family:"Gowun Batang",serif}
   button{font-family:inherit}
@@ -45,6 +51,27 @@
     overflow:hidden;position:relative;background-color:var(--page)}
 
   .side{order:2;padding:0;flex-shrink:0}
+  /* ---------- persistent mini player ---------- */
+  .miniplayer{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--sheet);
+    border-top:1px solid var(--hairline);animation:mpIn .26s var(--easeOut)}
+  .miniplayer[hidden]{display:none}
+  @keyframes mpIn{from{opacity:0;transform:translateY(100%)}to{opacity:1;transform:none}}
+  .mp-open{flex:1;min-width:0;display:flex;align-items:center;gap:10px;border:0;background:none;
+    padding:4px 2px;cursor:pointer;color:var(--ink);text-align:left;font-family:inherit}
+  .mp-title{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mp-btn{width:36px;height:36px;flex-shrink:0;border:0;background:none;color:var(--ink);
+    cursor:pointer;display:grid;place-items:center;border-radius:50%}
+  .mp-btn svg{width:19px;height:19px}
+  .mp-btn:active{background:var(--accent-soft)}
+  .mp-x{color:var(--muted)}.mp-x svg{width:15px;height:15px}
+  /* three bars that dance while audio runs, frozen when paused */
+  .mp-eq{display:flex;align-items:flex-end;gap:2px;height:14px;flex-shrink:0}
+  .mp-eq i{width:2.5px;background:var(--accent);border-radius:1px;height:5px;
+    animation:mpEq .9s ease-in-out infinite}
+  .mp-eq i:nth-child(2){animation-delay:.3s}.mp-eq i:nth-child(3){animation-delay:.6s}
+  .miniplayer.paused .mp-eq i{animation-play-state:paused;opacity:.45}
+  @keyframes mpEq{0%,100%{height:4px}50%{height:14px}}
+  @media(prefers-reduced-motion:reduce){.mp-eq i{animation:none;height:9px}.miniplayer{animation:none}}
   .side-inner{position:relative;background:var(--page);border-top:1px solid var(--hairline);
     display:flex;flex-direction:row;justify-content:space-around;align-items:stretch;
     padding:6px 14px calc(8px + env(safe-area-inset-bottom))}
@@ -593,6 +620,17 @@
 
   <!-- sidebar -->
   <aside class="side">
+    <!-- persistent player: survives every view change, shows only the cluster -->
+    <div class="miniplayer" id="miniPlayer" hidden>
+      <button class="mp-open" id="mpOpen" onclick="mpGo()">
+        <span class="mp-eq" id="mpEq" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="mp-title" id="mpTitle"></span>
+      </button>
+      <button class="mp-btn" id="mpToggle" onclick="mpToggle()" aria-label="Pause"></button>
+      <button class="mp-btn mp-x" onclick="mpClose()" aria-label="Stop">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
     <div class="side-inner">
       <div class="who">
         <div class="ava">한</div>
@@ -1994,7 +2032,7 @@ function go(v){
   if(v==='talk')renderTalk();
   if(v==='cards')renderCards();
   if(v==='clusters')renderClusters();
-  if(v!=='clusters')stopLoop();
+  renderMiniPlayer(); // audio outlives the view it started in
   uiSave();
 }
 document.querySelectorAll('.nav-row[data-view]').forEach(b=>b.onclick=()=>go(b.dataset.view));
@@ -2287,7 +2325,7 @@ function addUnitCluster(uid){
 
 /* ---- runner state: one continuous page, two audio modes ---- */
 let _cl={view:'list',c:null,tab:'prep',home:'reco',newOpen:false,edit:false};
-let _ap={on:false,token:0,order:[],pos:0,shuffle:false};
+let _ap={on:false,paused:false,cluster:null,token:0,order:[],pos:0,shuffle:false};
 function clRoot(){return document.getElementById('clusterRoot')}
 function clHome(t){_cl.home=t;_cl.newOpen=false;renderClusters()}
 function clRowHTML(c){
@@ -2320,7 +2358,6 @@ function renderClusters(){
   const mine=db.clusters.filter(c=>c.source==='custom');
   const reco=db.clusters.filter(c=>c.source!=='custom');
   el.innerHTML=`
-    ${_loop.on?nowPlayingHTML():''}
     <div class="cl-block hero-spot">
       ${SPOT_LISTEN}
       <div class="spot-body">
@@ -2840,23 +2877,39 @@ function apOrder(from){
   }
   return o;
 }
-function apToggle(){_ap.on?apStop():apStartAt(null)}
+function apToggle(){_ap.on?apPause():(_ap.paused?apResume():apStartAt(null))}
 function apShuffle(){_ap.shuffle=!_ap.shuffle;uiSave();if(_ap.on)apStartAt(null);else renderClusterRun()}
 function apPlayFrom(i){apStartAt(i)}
+function apBtn(playing){
+  const b=document.getElementById('apPlayBtn');
+  if(b){b.innerHTML=svgi(playing?ICO.pause:ICO.play);
+    b.setAttribute('aria-label',playing?'Pause':'Play');b.title=playing?'Pause':'Play'}
+}
 function apStartAt(from){
   speechSynthesis.cancel();
-  _ap.on=true;_ap.order=apOrder(from);_ap.pos=0;
+  _ap.on=true;_ap.paused=false;_ap.cluster=_cl.c;_ap.order=apOrder(from);_ap.pos=0;
   const tk=++_ap.token;
-  const b=document.getElementById('apPlayBtn');
-  if(b){b.innerHTML=svgi(ICO.pause);b.setAttribute('aria-label','Pause');b.title='Pause'}
+  apBtn(true);audioSessionStart(_cl.c?_cl.c.title:'Korean Tutor');
   if(solAvailable())solWakeStart(); // "Hey Sol?" listens while audio runs
   apStep(tk);
 }
+/* pause keeps the queue and position so the mini player can pick it straight back up */
+function apPause(){
+  if(!_ap.on)return;
+  _ap.on=false;_ap.paused=true;_ap.token++;speechSynthesis.cancel();solWakeStop();
+  apBtn(false);audioSessionPaused();renderMiniPlayer();
+}
+function apResume(){
+  if(!_ap.paused)return;
+  _ap.on=true;_ap.paused=false;
+  const tk=++_ap.token;
+  apBtn(true);audioSessionStart(_ap.cluster?_ap.cluster.title:'Korean Tutor');
+  if(solAvailable())solWakeStart();
+  apStep(tk);
+}
 function apStop(){
-  _ap.on=false;_ap.token++;speechSynthesis.cancel();solWakeStop();
-  const b=document.getElementById('apPlayBtn');
-  if(b){b.innerHTML=svgi(ICO.play);b.setAttribute('aria-label','Play');b.title='Play'}
-  apHighlight(-1);
+  _ap.on=false;_ap.paused=false;_ap.token++;speechSynthesis.cancel();solWakeStop();
+  apBtn(false);apHighlight(-1);audioSessionStop();renderMiniPlayer();
 }
 function apHighlight(idx){
   document.querySelectorAll('.snt.playing').forEach(e=>e.classList.remove('playing'));
@@ -3050,24 +3103,109 @@ async function aiGrowCluster(cid){
   }catch(e){toast('Generation failed: '+e.message)}
 }
 
+/* ================= AUDIO SESSION: mini player, lock screen, background ================= */
+/* A silent looping track holds the OS audio session open. That is what puts the lock-screen
+   controls on screen and keeps the tab alive through short interruptions — speech synthesis
+   alone gets no audio focus. iOS still suspends synthesis on a long background stretch, so
+   returning to the app re-kicks the queue from wherever it stopped. */
+let _silent=null;
+function silentTrack(){
+  if(_silent)return _silent;
+  const sr=8000,secs=5,n=sr*secs,buf=new ArrayBuffer(44+n*2),v=new DataView(buf);
+  const w=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))};
+  w(0,'RIFF');v.setUint32(4,36+n*2,true);w(8,'WAVE');w(12,'fmt ');
+  v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
+  v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);
+  w(36,'data');v.setUint32(40,n*2,true); // samples stay zero — silence
+  _silent=new Audio(URL.createObjectURL(new Blob([buf],{type:'audio/wav'})));
+  _silent.loop=true;_silent.volume=.001;_silent.preload='auto';
+  return _silent;
+}
+function audioSessionStart(title){
+  try{const t=silentTrack();if(t.paused)t.play().catch(()=>{})}catch(e){}
+  if('mediaSession' in navigator){
+    try{
+      navigator.mediaSession.metadata=new MediaMetadata({title:title||'Korean Tutor',artist:'Korean Tutor'});
+      navigator.mediaSession.playbackState='playing';
+      navigator.mediaSession.setActionHandler('play',mpResume);
+      navigator.mediaSession.setActionHandler('pause',mpPause);
+      navigator.mediaSession.setActionHandler('stop',mpClose);
+    }catch(e){}
+  }
+  renderMiniPlayer();
+}
+function audioSessionPaused(){
+  try{const t=silentTrack();t.pause()}catch(e){}
+  if('mediaSession' in navigator){try{navigator.mediaSession.playbackState='paused'}catch(e){}}
+}
+function audioSessionStop(){
+  try{const t=silentTrack();t.pause();t.currentTime=0}catch(e){}
+  if('mediaSession' in navigator){try{navigator.mediaSession.playbackState='none'}catch(e){}}
+  renderMiniPlayer();
+}
+/* ---- the persistent bar itself ---- */
+function mpPlaying(){return _ap.on||_loop.on}
+function mpPausedState(){return (!mpPlaying())&&(_ap.paused||_loop.paused)}
+function mpLabel(){
+  if(_loop.on||_loop.paused)return 'All clusters';
+  const c=_ap.cluster||_cl.c;
+  return c?c.title:'Korean Tutor';
+}
+function renderMiniPlayer(){
+  const el=document.getElementById('miniPlayer');if(!el)return;
+  const live=mpPlaying(),held=mpPausedState();
+  el.hidden=!(live||held);
+  if(el.hidden)return;
+  el.classList.toggle('paused',held);
+  setText('mpTitle',mpLabel());
+  const b=document.getElementById('mpToggle');
+  if(b){b.innerHTML=svgi(live?ICO.pause:ICO.play);
+    b.setAttribute('aria-label',live?'Pause':'Play')}
+}
+function mpPause(){if(_loop.on)loopPause();else if(_ap.on)apPause()}
+function mpResume(){if(_loop.paused)loopResume();else if(_ap.paused)apResume()}
+function mpToggle(){mpPlaying()?mpPause():mpResume()}
+function mpClose(){apStop();stopLoop();renderMiniPlayer()}
+function mpGo(){ /* jump to whatever is playing */
+  if(_loop.on||_loop.paused){go('clusters');return}
+  const c=_ap.cluster;
+  if(c&&db.clusters.includes(c)){go('clusters');openCluster(c.id)}
+  else go('clusters');
+}
+/* coming back to the app: iOS may have killed the utterance mid-queue — start it again */
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden)return;
+  setTimeout(()=>{
+    if(speechSynthesis.speaking||speechSynthesis.pending)return;
+    if(_ap.on)apStep(_ap.token);
+    else if(_loop.on)loopStep();
+  },350);
+});
+
 /* ---- downtime loop player ---- */
-let _loop={on:false,queue:[],i:0};
+let _loop={on:false,paused:false,queue:[],i:0};
 function startLoop(){
   const sents=[];
   db.clusters.filter(c=>c.started).forEach(c=>c.sentences.forEach(s=>sents.push({...s,cluster:c.title})));
   if(!sents.length)return;
-  _loop={on:true,queue:sents,i:0};
-  if('mediaSession' in navigator){
-    navigator.mediaSession.metadata=new MediaMetadata({title:'Korean clusters',artist:'Korean Tutor'});
-  }
+  apStop();
+  _loop={on:true,paused:false,queue:sents,i:0};
+  audioSessionStart('All clusters');
   loopStep();renderClusters();
+}
+function loopPause(){
+  if(!_loop.on)return;
+  _loop.on=false;_loop.paused=true;speechSynthesis.cancel();
+  audioSessionPaused();renderMiniPlayer();
+}
+function loopResume(){
+  if(!_loop.paused)return;
+  _loop.on=true;_loop.paused=false;
+  audioSessionStart('All clusters');loopStep();
 }
 function loopStep(){
   if(!_loop.on)return;
   const s=_loop.queue[_loop.i%_loop.queue.length];
-  const np=document.getElementById('npSent');
-  if(np){np.textContent=s.ko;document.getElementById('npGloss').textContent=s.en;
-    document.getElementById('npCluster').textContent=s.cluster}
   speechSynthesis.cancel();
   const u=new SpeechSynthesisUtterance(s.ko);
   u.lang='ko-KR';u.rate=koRate();
@@ -3075,14 +3213,11 @@ function loopStep(){
   u.onend=()=>{if(_loop.on)setTimeout(()=>{_loop.i++;loopStep()},900)};
   speechSynthesis.speak(u);
 }
-function stopLoop(){if(_loop.on){_loop.on=false;speechSynthesis.cancel();if(_cl.view==='list'&&clRoot())renderClusters()}}
-function nowPlayingHTML(){
-  return `<div class="now-playing">
-    <p class="tag accent" style="margin:0 0 8px" id="npCluster"></p>
-    <p class="cl-sent" id="npSent" style="font-size:20px"></p>
-    <p class="cl-gloss" id="npGloss"></p>
-    <div class="cl-actions" style="margin-top:12px"><button class="btn ghost sm" onclick="stopLoop()">■ Stop</button></div>
-  </div>`;
+function stopLoop(){
+  if(!_loop.on&&!_loop.paused)return;
+  _loop.on=false;_loop.paused=false;speechSynthesis.cancel();
+  audioSessionStop();
+  if(_cl.view==='list'&&clRoot())renderClusters();
 }
 
 /* ================= STATS / DASHBOARD ================= */
@@ -5970,6 +6105,7 @@ function init(){
       selMode:!!ui.selMode,sel:new Set(ui.sel||[])};
   }
   go(ui.view||'clusters');
+  renderMiniPlayer();
 }
 /* settings lives inside Profile now: adopt the standalone section's cards */
 (function(){

@@ -1,5 +1,5 @@
 /* Korean Tutor service worker — network-first app shell (so edits reach installed phones), cache-first assets */
-const CACHE = 'kt-v2';
+const CACHE = 'kt-v3';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
