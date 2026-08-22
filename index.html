@@ -579,6 +579,25 @@
   .swipe.drag .snt{transform:scale(1.025);border-radius:8px;border-top-color:transparent;
     box-shadow:0 12px 28px rgba(0,0,0,.17);transition:transform .2s var(--easeOut),box-shadow .2s var(--easeOut)}
   .swipe.removing{overflow:hidden;transition:height .3s var(--easeOut),opacity .24s var(--easeOut)}
+  /* ---------- vocabulary ---------- */
+  .vp-row{border-top:1px solid var(--hairline)}
+  .vp-row:first-child{border-top:0}
+  .vp-head{width:100%;display:flex;align-items:center;gap:12px;padding:13px 2px;border:0;background:none;
+    cursor:pointer;color:var(--ink);text-align:left;font-family:inherit}
+  .vp-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+  .vp-ko{font-family:"Gowun Batang",serif;font-size:19px;line-height:1.35}
+  .vp-en{font-family:Spectral,serif;font-style:italic;font-weight:300;font-size:13.5px;color:var(--muted)}
+  .vp-meta{display:flex;align-items:center;gap:9px;flex-shrink:0}
+  .vp-use{font-family:Karla;font-size:11px;font-weight:700;color:var(--accent);
+    background:var(--accent-soft);border-radius:999px;padding:2px 8px}
+  .vp-dots{display:flex;gap:3px}
+  .vp-dots i{width:5px;height:5px;border-radius:50%;background:var(--hairline)}
+  .vp-dots i.on{background:var(--accent)}
+  .vp-body{padding:2px 2px 16px;animation:revIn .2s var(--easeOut)}
+  .vp-cl{display:flex;flex-wrap:wrap;gap:7px}
+  .vp-add{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+  .vp-add input{flex:1;min-width:0}
+  .vp-scan{border:1px solid var(--hairline);border-radius:var(--r-card);padding:14px;margin-bottom:12px;background:var(--sheet)}
   .now-playing{border:1px solid var(--hairline);background:var(--panel);padding:18px;margin-bottom:14px;text-align:center}
   .cl-sent{font-family:"Gowun Batang",serif;font-size:24px;line-height:1.55;margin:0}
   .cl-gloss{font-family:Spectral,serif;font-style:italic;font-weight:300;font-size:15px;color:var(--muted);margin:6px 0 0}
@@ -650,6 +669,9 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="6.5" width="13" height="14" rx="2.5"/><path d="M8 3.5h9.5a3 3 0 0 1 3 3V16"/></svg>
           <span class="nbadge" id="navDueBadge">0</span>
         </button>
+        <button class="nav-row" data-view="vocab" aria-label="Vocabulary" title="Vocabulary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H19v16H5.5A1.5 1.5 0 0 1 4 18.5z"/><line x1="8" y1="8.5" x2="15" y2="8.5"/><line x1="8" y1="12" x2="15" y2="12"/><line x1="8" y1="15.5" x2="12.5" y2="15.5"/></svg>
+        </button>
         <button class="nav-row" data-view="dash" aria-label="Profile" title="Profile">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.2-3.4 3.8-5 7-5s5.8 1.6 7 5"/></svg>
         </button>
@@ -667,6 +689,11 @@
     <!-- CLUSTERS: sentence-method core (landing view) -->
     <section id="clusters" class="view active">
       <div id="clusterRoot"></div>
+    </section>
+
+    <!-- VOCABULARY -->
+    <section id="vocab" class="view">
+      <div id="vocabArea"></div>
     </section>
 
     <!-- PROFILE (progress, experience & settings) -->
@@ -1987,9 +2014,9 @@ function flashXP(n){const e=document.getElementById('xpFlash');e.textContent='+'
 /* ================= NAV ================= */
 const TITLES={
   dash:['Profile',''],lesson:['Lessons',''],talk:['Talk',''],
-  clusters:['Clusters',''],notes:['Notes to lessons',''],cards:['Review',''],
+  clusters:['Clusters',''],notes:['Notes to lessons',''],cards:['Review',''],vocab:['Vocabulary',''],
 };
-const TAB_ORDER=['clusters','lesson','cards','dash'];
+const TAB_ORDER=['clusters','lesson','cards','vocab','dash'];
 let _prevView='clusters';
 function profTab(t){
   document.querySelectorAll('[data-proftab]').forEach(b=>b.classList.toggle('on',b.dataset.proftab===t));
@@ -2033,6 +2060,7 @@ function go(v){
   if(v==='talk')renderTalk();
   if(v==='cards')renderCards();
   if(v==='clusters')renderClusters();
+  if(v==='vocab')renderVocab();
   renderMiniPlayer(); // audio outlives the view it started in
   uiSave();
 }
@@ -5148,6 +5176,837 @@ function vocabStateOf(id){
   return db.vocabState[id];
 }
 
+/* ================= BUILT-IN GRAMMAR COURSE =================
+   Authored units in the same shape the notes generator produces, so lessons teach
+   real grammar with no API key. Vocabulary is deliberately drawn from the starter
+   clusters, so the Clusters tab and the Lessons tab are practising the same words.
+   Ids are derived from courseId — stable across reloads, so progress survives. */
+const CB=(tag,prompt,gloss,options,answer,shortWhy,deepWhy,usesVocab,type)=>
+  ({tag,type:type||'blank',prompt,gloss,options,answer,shortWhy,deepWhy,usesVocab:usesVocab||[]});
+const CW=(display,meaning,pos,contextKr,contextEn,accepts)=>
+  ({display,meaning,pos,accepts:accepts||[meaning],contextKr,contextEn});
+
+const COURSE2=[
+{courseId:'polite',title:'Speaking politely · the 요 ending',
+ tags:[{id:'stem',label:'Verb stems'},{id:'aeo',label:'아요 or 어요'},{id:'hada',label:'하다 verbs'}],
+ pages:[
+  {tag:null,title:'The verb comes last — and carries the politeness',body:[
+   {kind:'prose',text:'A Korean sentence puts its verb at the very end. Who did it, what they did it to, where they did it — all of that comes first, and the verb closes the sentence. This never changes, so once you expect it, long sentences stop feeling scrambled.'},
+   {kind:'prose',text:'That final verb is also where politeness lives. You do not add a polite word elsewhere in the sentence; you change the ending of the verb. This unit builds the everyday polite ending, 요 (yo) — the safe default with strangers, shopkeepers, and anyone you are not close to.'},
+   {kind:'example',kr:'저는 밥을 먹어요.',en:'I eat rice.',note:'먹어요 (eat, polite) sits at the very end.'},
+   {kind:'compare',left:{h:'Casual',kr:'밥 먹어',en:'eat / eating'},right:{h:'Polite · 요',kr:'밥을 먹어요',en:'I eat rice'}}],
+   check:CB('stem','저는 학교에 가__.','I go to school.',['요','다'],0,
+    '다 is the dictionary form — you never say it in a plain sentence. The spoken polite form ends in 요.',
+    '가다 (to go) is how the verb is listed in a dictionary. To actually speak, you drop 다 and attach an ending: 가 + 아요, which contracts to 가요 (go, polite). Saying 가다 out loud sounds like reading from a word list rather than talking to someone.',['가다'])},
+  {tag:'stem',title:'Every polite form starts from the stem',body:[
+   {kind:'prose',text:'Korean verbs are listed in dictionaries ending in 다 (da). That 다 is not part of the word you speak — it is a label, like the "to" in English "to eat". Remove it and what is left is the stem, the piece every ending attaches to.'},
+   {kind:'table',head:['Dictionary form','Stem','Meaning'],rows:[['먹다','먹','to eat'],['가다','가','to go'],['마시다','마시','to drink'],['좋다','좋','to be good']]},
+   {kind:'prose',text:'Adjectives work exactly the same way. Korean treats 좋다 (to be good) as a verb — it takes the same endings, and there is no separate word for "is". This is why 좋아요 alone is a complete sentence meaning "it is good".'},
+   {kind:'example',kr:'이거 좋아요.',en:'This is good.',note:'No "is" needed — 좋아요 already contains it.'}],
+   check:CB('stem','마시다 의 어간(stem)은 __ 이에요.','The stem of 마시다 is ___.',['마시','마시다'],0,
+    'Drop 다 from the dictionary form and the stem is what remains: 마시.',
+    'Endings attach to the stem, never to the full dictionary form. 마시다 (to drink) minus 다 leaves 마시, and the polite ending gives 마셔요 (drink, polite). If you kept 다 you would get 마시다요, which is not Korean.',['마시다'])},
+  {tag:'aeo',title:'아요 or 어요 — look at the stem\'s last vowel',body:[
+   {kind:'prose',text:'There are only two choices, and one quick test decides between them. Look at the last vowel in the stem. If it is ㅏ or ㅗ, add 아요. Everything else takes 어요.'},
+   {kind:'table',head:['Last stem vowel','Ending','Example'],rows:[['ㅏ or ㅗ','아요','좋다 → 좋아요'],['anything else','어요','먹다 → 먹어요']]},
+   {kind:'prose',text:'This is a sound rule, not a meaning rule — ㅏ and ㅗ are bright vowels that sit comfortably next to 아. It carries no extra nuance, so once you can hear it, it stops costing you any thought.'},
+   {kind:'prose',text:'When the stem already ends in a vowel, the two vowels merge rather than stacking: 가 + 아요 becomes 가요, not 가아요. Korean avoids repeating the same vowel sound.'},
+   {kind:'example',kr:'김치가 매워요.',en:'The kimchi is spicy.',note:'맵다 (to be spicy) → 매워요, an irregular you simply learn as a pair.'}],
+   check:CB('aeo','물을 마셔__.','I drink water.',['요','아요'],0,
+    '마시 + 어요 contracts to 마셔요 — the 요 is already carried by the contraction.',
+    '마시다 (to drink) has ㅣ as its last stem vowel, which is neither ㅏ nor ㅗ, so it takes 어요. 마시 + 어요 merges into 마셔요. Writing 마셔아요 would double an ending that has already been applied.',['마시다'])},
+  {tag:'hada',title:'하다 verbs all become 해요',body:[
+   {kind:'prose',text:'A large share of Korean verbs are built from a noun plus 하다 (to do): 요리 (cooking) + 하다 = 요리하다 (to cook). Every single one of them turns into 해요 in the polite form. It is irregular, but it is one irregularity that unlocks hundreds of verbs.'},
+   {kind:'table',head:['Dictionary form','Polite','Meaning'],rows:[['하다','해요','to do'],['요리하다','요리해요','to cook'],['공부하다','공부해요','to study'],['좋아하다','좋아해요','to like']]},
+   {kind:'prose',text:'Because the noun stays visible in front, you can often guess a 하다 verb\'s meaning from a noun you already know — and you always know how to conjugate it.'},
+   {kind:'example',kr:'저는 한국어를 공부해요.',en:'I study Korean.'}],
+   check:CB('hada','저는 요리를 좋아__.','I like cooking.',['해요','아요'],0,
+    '좋아하다 is a 하다 verb, so its polite form is 좋아해요.',
+    'Do not confuse 좋다 (to be good) with 좋아하다 (to like). 좋다 is a plain adjective and gives 좋아요. 좋아하다 ends in 하다, so it follows the 하다 rule and gives 좋아해요. The difference matters: 김치가 좋아요 means the kimchi is good, while 김치를 좋아해요 means I like kimchi.',['좋아하다'])}],
+ mainBank:[
+  CB('stem','저는 물을 마__.','I drink water.',['셔요','시다'],0,'Speaking uses the polite form 마셔요, not the dictionary form 마시다.','마시다 (to drink) is the dictionary listing. In a spoken sentence the stem 마시 takes 어요 and contracts to 마셔요.',['마시다']),
+  CB('stem','친구가 학교에 __.','My friend goes to school.',['가요','가다'],0,'가다 is a dictionary entry; the spoken polite form is 가요.','Every real Korean sentence ends in a conjugated verb. 가다 minus 다 leaves 가, and 가 + 아요 contracts to 가요.',['가다','친구','학교']),
+  CB('stem','이 음식이 __.','This food is good.',['좋아요','좋다'],0,'좋다 is the dictionary form; the sentence needs 좋아요.','Korean adjectives conjugate exactly like verbs. 좋다 (to be good) drops 다, and because the stem vowel is ㅗ it takes 아요, giving 좋아요. No separate word for "is" is needed.',['좋다','음식']),
+  CB('stem','저는 김치를 __.','I eat kimchi.',['먹어요','먹다'],0,'먹다 is the dictionary form; speaking requires 먹어요.','The stem 먹 has ㅓ as its vowel, so it takes 어요 rather than 아요, giving 먹어요.',['먹다','김치']),
+  CB('stem','언니가 커피를 __.','My older sister drinks coffee.',['마셔요','마시다'],0,'A sentence needs the conjugated 마셔요.','마시다 → stem 마시 → 마시 + 어요 → 마셔요. The dictionary form never ends a normal sentence.',['마시다','커피']),
+  CB('aeo','저는 빵을 먹__.','I eat bread.',['어요','아요'],0,'먹 has ㅓ as its last vowel, which is neither ㅏ nor ㅗ, so it takes 어요.','The bright vowels ㅏ and ㅗ pull 아요; every other vowel takes 어요. 먹다 (to eat) has ㅓ, so 먹어요 is correct.',['먹다','빵']),
+  CB('aeo','날씨가 좋__.','The weather is good.',['아요','어요'],0,'좋 has ㅗ as its last vowel, so it takes 아요.','ㅗ is one of the two bright vowels, so 좋다 (to be good) takes 아요 and becomes 좋아요.',['좋다','날씨']),
+  CB('aeo','문을 닫__.','I close the door.',['아요','어요'],0,'닫 has ㅏ as its last vowel, so it takes 아요.','닫다 (to close) has the bright vowel ㅏ in its stem, which selects 아요, giving 닫아요.',['닫다','문']),
+  CB('aeo','책을 읽__.','I read a book.',['어요','아요'],0,'읽 has ㅣ as its last vowel, so it takes 어요.','Only ㅏ and ㅗ take 아요. 읽다 (to read) has ㅣ, so it falls into the "everything else" group and becomes 읽어요.',['읽다','책']),
+  CB('aeo','친구를 만나__.','I meet a friend.',['요','아요'],0,'만나 already ends in ㅏ, so 만나 + 아요 merges to 만나요.','When a stem ends in the same vowel the ending starts with, Korean merges them instead of repeating: 만나 + 아요 → 만나요, never 만나아요.',['만나다','친구']),
+  CB('hada','저는 매일 요리__.','I cook every day.',['해요','아요'],0,'요리하다 is a 하다 verb, so it becomes 요리해요.','Every verb ending in 하다 conjugates to 해요 in the polite form. The noun in front (요리, cooking) never changes.',['요리하다']),
+  CB('hada','뭐 __?','What are you doing?',['해요','하아요'],0,'하다 becomes 해요 — never 하아요.','하다 (to do) is the single most common irregular in Korean. Its polite form is 해요, and every compound built on it follows: 공부해요, 요리해요, 좋아해요.',['하다']),
+  CB('hada','동생이 한국어를 공부__.','My younger sibling studies Korean.',['해요','어요'],0,'공부하다 ends in 하다, so the polite form is 공부해요.','공부 (study) + 하다 makes a 하다 verb, which always gives 해요. The 어요 ending belongs to plain stems like 먹 or 읽.',['공부하다','동생']),
+  CB('hada','저는 김치를 좋아__.','I like kimchi.',['해요','요'],0,'좋아하다 is a 하다 verb and becomes 좋아해요.','좋아하다 (to like) is built on 하다, so it gives 좋아해요. It is a different word from 좋다 (to be good), which gives 좋아요 — one describes your feeling, the other describes the thing.',['좋아하다','김치']),
+  CB('hada','이거 __?','Do you like this?',['좋아해요','좋아요'],0,'"Do you like" is about the person\'s feeling, so it needs 좋아하다 → 좋아해요.','좋아요 would say "it is good" — a property of the object. 좋아해요 says "[someone] likes it" — an action of the person. The English "like" always maps to 좋아하다.',['좋아하다'],'nuance')],
+ reserveBank:[
+  CB('stem','아버지가 신문을 __.','My father reads a newspaper.',['읽어요','읽다'],0,'The sentence needs the conjugated form 읽어요.','읽다 (to read) drops 다, leaving 읽, which takes 어요 because its vowel is ㅣ.',['읽다']),
+  CB('stem','고양이가 물을 __.','The cat drinks water.',['마셔요','마시다'],0,'마시다 must be conjugated to 마셔요 to end a sentence.','Dictionary forms label a word; conjugated forms make sentences. 마시 + 어요 → 마셔요.',['마시다','물']),
+  CB('stem','저는 매일 운동__.','I exercise every day.',['해요','하다'],0,'운동하다 is a 하다 verb, so it conjugates to 운동해요.','운동 (exercise) + 하다 follows the 하다 rule and becomes 운동해요.',['운동하다']),
+  CB('stem','오늘 날씨가 __.','The weather is good today.',['좋아요','좋다'],0,'Adjectives conjugate too — 좋다 becomes 좋아요.','Korean adjectives are verbs grammatically. 좋다 takes 아요 because of its ㅗ vowel, and 좋아요 is already a complete sentence.',['좋다','오늘']),
+  CB('aeo','창문을 열__.','I open the window.',['어요','아요'],0,'열 has ㅕ as its vowel, so it takes 어요.','Only ㅏ and ㅗ select 아요. 열다 (to open) has ㅕ, so it takes 어요 and becomes 열어요.',['열다']),
+  CB('aeo','아이가 웃__.','The child laughs.',['어요','아요'],0,'웃 has ㅜ as its vowel, so it takes 어요.','ㅜ is not one of the two bright vowels, so 웃다 (to laugh) takes 어요, giving 웃어요.',['웃다']),
+  CB('aeo','값이 비싸__.','It is expensive.',['요','아요'],0,'비싸 already ends in ㅏ, so the vowels merge into 비싸요.','비싸다 (to be expensive) has a stem ending in ㅏ. Adding 아요 would repeat the vowel, so Korean merges them: 비싸요.',['비싸다']),
+  CB('aeo','제가 사진을 찍__.','I take a photo.',['어요','아요'],0,'찍 has ㅣ as its vowel, so it takes 어요.','찍다 (to take a photo) has ㅣ in its stem, which falls outside ㅏ and ㅗ, so 찍어요 is correct.',['찍다']),
+  CB('hada','우리는 같이 식사__.','We have a meal together.',['해요','아요'],0,'식사하다 ends in 하다, so it becomes 식사해요.','Any noun + 하다 compound conjugates to 해요. 식사 (a meal) + 하다 → 식사해요.',['식사하다']),
+  CB('hada','언니가 노래를 __.','My older sister sings.',['해요','좋아요'],0,'노래하다 is a 하다 verb giving 노래해요.','노래 (song) + 하다 makes "to sing", and like every 하다 verb it becomes 해요.',['노래하다']),
+  CB('hada','저는 커피를 __.','I like coffee.',['좋아해요','좋아요'],0,'Liking something takes 좋아하다 → 좋아해요.','좋아요 describes the coffee as good; 좋아해요 describes your preference. English "I like X" always maps to X를 좋아해요.',['좋아하다','커피'],'nuance'),
+  CB('hada','한국 음식이 __.','Korean food is good.',['좋아요','좋아해요'],0,'This describes the food itself, so it takes 좋다 → 좋아요.','Here the subject is the food, not a person, so the adjective 좋다 applies: 좋아요. Using 좋아해요 would need a person doing the liking.',['좋다','음식'],'nuance')],
+ vocab:[
+  CW('먹다','to eat','verb','저는 김치를 먹어요.','I eat kimchi.'),
+  CW('마시다','to drink','verb','물을 마셔요.','I drink water.'),
+  CW('가다','to go','verb','학교에 가요.','I go to school.'),
+  CW('하다','to do','verb','뭐 해요?','What are you doing?'),
+  CW('좋다','to be good','adj','날씨가 좋아요.','The weather is good.'),
+  CW('좋아하다','to like','verb','저는 김치를 좋아해요.','I like kimchi.'),
+  CW('요리하다','to cook','verb','저는 매일 요리해요.','I cook every day.'),
+  CW('공부하다','to study','verb','한국어를 공부해요.','I study Korean.'),
+  CW('읽다','to read','verb','책을 읽어요.','I read a book.'),
+  CW('만나다','to meet','verb','친구를 만나요.','I meet a friend.'),
+  CW('웃다','to laugh / to smile','verb','아이가 웃어요.','The child laughs.'),
+  CW('맵다','to be spicy','adj','김치가 매워요.','The kimchi is spicy.'),
+  CW('음식','food','noun','한국 음식이 좋아요.','Korean food is good.'),
+  CW('물','water','noun','물을 마셔요.','I drink water.'),
+  CW('친구','friend','noun','친구를 만나요.','I meet a friend.'),
+  CW('학교','school','noun','학교에 가요.','I go to school.'),
+  CW('책','book','noun','책을 읽어요.','I read a book.'),
+  CW('커피','coffee','noun','커피를 좋아해요.','I like coffee.')],
+ endings:['요','아요','어요','해요','다']},
+
+{courseId:'particles',title:'은/는 and 이/가 · topic and subject',
+ tags:[{id:'subject-ga',label:'이/가 · the plain subject'},{id:'topic-neun',label:'은/는 · the known topic'},
+       {id:'contrast',label:'은/는 · contrast'},{id:'form',label:'Choosing the right shape'}],
+ pages:[
+  {tag:null,title:'One principle behind every rule',body:[
+   {kind:'prose',text:'Most lists teach these two particles as eight separate rules. There is a single idea underneath all of them: 이/가 is the plain, unmarked way to mark a subject, and 은/는 is a deliberate choice that adds something on top — "as for this one", "this one, in contrast to the others".'},
+   {kind:'prose',text:'The clearest proof is that the same sentence works with either, and the meaning shifts rather than breaking.'},
+   {kind:'compare',left:{h:'이/가 · neutral',kr:'저기 연필이 있어요.',en:'There is a pencil over there.'},right:{h:'은/는 · marked',kr:'저기 연필은 있어요.',en:'There is a pencil (though not the other thing).'}},
+   {kind:'prose',text:'So the real question is never "which particle is correct here". It is "do I want to add that extra layer?" If not, use 이/가.'}],
+   check:CB('subject-ga','누__ 제 쿠키를 먹었어요?','Who ate my cookie?',['가','는'],0,
+    'A question word like 누구 (who) is brand-new information, so it takes the neutral 이/가.',
+    '은/는 marks something already known to both speakers. 누구 (who) is by definition unknown — that is the point of asking — so it can never be the known topic. 누구 + 가 contracts to the irregular 누가.',['누구'])},
+  {tag:'subject-ga',title:'이/가 · reporting something new',body:[
+   {kind:'prose',text:'Use 이/가 when you are introducing something into the conversation or reporting an event as it is. Nothing is assumed; you are simply stating what is happening.'},
+   {kind:'example',kr:'밖에 비가 와요.',en:'It is raining outside.',note:'비 (rain) is new information — you are reporting it, not commenting on rain in general.'},
+   {kind:'example',kr:'교실에 학생이 많아요.',en:'There are many students in the classroom.'},
+   {kind:'prose',text:'This is why answers to "who?" and "what happened?" take 이/가 — the answer is the new part of the sentence.'}],
+   check:CB('subject-ga','동생__ 쿠키를 먹었어요.','My younger sibling ate the cookie.',['이','은'],0,
+    'This answers "who ate it", so the subject is the new information and takes 이.',
+    'When a sentence supplies the missing piece of a question, that piece takes 이/가. Marking it 동생은 would instead mean "as for my sibling…", steering attention away from the answer rather than delivering it.',['동생'])},
+  {tag:'topic-neun',title:'은/는 · talking about a known thing',body:[
+   {kind:'prose',text:'은/는 sets up what the sentence is about, when that thing is already established — yourself, the person in front of you, something just mentioned. It roughly means "as for ___".'},
+   {kind:'example',kr:'저는 캘리포니아에서 왔어요.',en:'I am from California.',note:'저 (I) is always known, so it almost always takes 는.'},
+   {kind:'prose',text:'Careful: "general statement" does not mean "any ordinary sentence". It means you are describing an established thing rather than reporting a new event. 밖에 비가 와요 is an ordinary sentence, but the rain is news, so it takes 가.'},
+   {kind:'compare',left:{h:'Reporting news',kr:'비가 와요.',en:'It is raining.'},right:{h:'About a known thing',kr:'저는 학생이에요.',en:'I am a student.'}}],
+   check:CB('topic-neun','저__ 한국 음식을 좋아해요.','I like Korean food.',['는','가'],0,
+    '저 (I) is always already known to both speakers, so it takes 는.',
+    'The speaker is never new information — you are standing right there. Sentences about yourself take 저는 by default. 저가 is not used at all; the irregular subject form would be 제가, reserved for when you are specifically the answer to "who?".',['저'])},
+  {tag:'contrast',title:'은/는 · setting two things against each other',body:[
+   {kind:'prose',text:'The second job of 은/는 is contrast. Marking a word with 은/는 quietly implies "…but the other one is different", even when the other one is never spoken aloud.'},
+   {kind:'example',kr:'저는 판초는 있어요.',en:'I do have a poncho (though not an umbrella).',note:'The second 는 does the contrasting work.'},
+   {kind:'compare',left:{h:'Neutral',kr:'김치가 매워요.',en:'The kimchi is spicy.'},right:{h:'Contrastive',kr:'김치는 매워요.',en:'The kimchi is spicy (unlike the rest).'}},
+   {kind:'prose',text:'This is why a sentence can carry 은/는 twice: once to set the topic, once to contrast within it. Both are the same particle doing the same job — marking something as deliberately chosen.'}],
+   check:CB('contrast','커피는 좋아하는데, 차__ 안 좋아해요.','I like coffee, but I do not like tea.',['는','가'],0,
+    'The two drinks are being set against each other, which is exactly what 는 marks.',
+    'The sentence names two items and assigns them opposite verdicts. That is textbook contrast, so both take 은/는. Using 차가 would report the tea neutrally and lose the "but" that the English sentence depends on.',['차','좋아하다'],'nuance')},
+  {tag:'form',title:'Which shape · listen for the final consonant',body:[
+   {kind:'prose',text:'Only now does the mechanical part matter. Each particle has two shapes, and the choice is pure sound: does the word before it end in a consonant or a vowel?'},
+   {kind:'table',head:['Word ends in','Topic','Subject'],rows:[['consonant (받침)','은','이'],['vowel','는','가']]},
+   {kind:'prose',text:'받침 (batchim) is the name for a final consonant sitting under a syllable. 밥 ends in ㅂ, so it takes 은/이. 커피 ends in the vowel ㅣ, so it takes 는/가.'},
+   {kind:'example',kr:'밥은 맛있어요. 커피는 뜨거워요.',en:'The rice is tasty. The coffee is hot.'},
+   {kind:'prose',text:'The rule exists to keep words pronounceable, which is why it carries no meaning at all. Get the meaning choice right first; this part becomes automatic.'}],
+   check:CB('form','학생__ 교실에 있어요.','The student is in the classroom.',['이','가'],0,
+    '학생 ends in the consonant ㅇ, so the subject particle takes its consonant shape 이.',
+    '받침 selection looks only at the last syllable of the preceding word. 학생 ends in ㅇ, a final consonant, so 이 is required. 가 attaches only after a vowel, as in 커피가.',['학생','교실'])}],
+ mainBank:[
+  CB('subject-ga','밖에 비__ 와요.','It is raining outside.',['가','는'],0,'You are reporting new weather, so the neutral 가 is right.','Reporting an event as news takes 이/가. 비는 와요 would contrast the rain with something else, which is not what a plain weather remark does.',['비']),
+  CB('subject-ga','교실에 학생__ 많아요.','There are many students in the classroom.',['이','은'],0,'Existence and quantity statements introduce the thing, so they take 이/가.','있다, 없다 and descriptive words like 많다 (to be many) report what exists. The thing being counted is new information, so 학생이 is correct.',['학생','교실']),
+  CB('subject-ga','누__ 왔어요?','Who came?',['가','는'],0,'Question words are unknown by definition, so they take 이/가.','누구 (who) cannot be a known topic — asking the question is what makes it unknown. 누구 + 가 contracts irregularly to 누가.',['누구']),
+  CB('subject-ga','친구__ 저를 도와줬어요.','My friend helped me.',['가','는'],0,'This reports who did the helping, so the subject takes 가.','The point of the sentence is the actor. Answers to "who did it" take 이/가; 친구는 would shift to "as for my friend…" and change the emphasis.',['친구','도와주다']),
+  CB('topic-neun','저__ 학생이에요.','I am a student.',['는','가'],0,'저 (I) is always known, so it takes 는.','Statements about yourself use 저는. 저가 does not exist as a form, and 제가 would only appear when you are specifically answering "who?".',['저']),
+  CB('topic-neun','한국 음식__ 매워요.','Korean food is spicy.',['은','이'],0,'This describes a known category in general, so 은 fits.','Generalising about an established thing is the core use of 은/는. 음식이 매워요 would report a specific dish as spicy right now.',['음식','맵다']),
+  CB('topic-neun','오늘__ 날씨가 좋아요.','Today the weather is good.',['은','이'],0,'오늘 sets the frame for the sentence, which is a topic role.','Time words often act as the topic: "as for today…". Notice the sentence then still marks 날씨 with 가, because the weather is the new report inside that frame.',['오늘','날씨']),
+  CB('topic-neun','제 이름__ 애런이에요.','My name is Aaron.',['은','이'],0,'Your name is established context, so it takes 은.','Introducing yourself frames a known thing — your name — and supplies its value. 이름은 sets that frame. 이름이 would answer a pointed "which one is the name?".',['이름']),
+  CB('contrast','밥은 먹었는데 커피__ 안 마셨어요.','I ate, but I did not drink coffee.',['는','가'],0,'Two things are set against each other, so both take 은/는.','Contrast is the second job of 은/는. The sentence grants one thing and denies the other, so each gets the marked particle.',['커피','마시다']),
+  CB('contrast','이거__ 좋은데, 저건 별로예요.','This one is good, but that one is not great.',['는','가'],0,'The sentence compares two items directly, which calls for 는.','Whenever a sentence contains "but" weighing two things, both usually carry 은/는. 이게 좋아요 would simply report this one as good with nothing implied about the other.',['이것'],'nuance'),
+  CB('contrast','저기 연필__ 있어요.','There is a pencil over there (though not the other thing).',['은','이'],0,'The English gloss carries an implied contrast, and 은 is what supplies it.','Both particles are grammatical here. 연필이 있어요 neutrally reports a pencil; 연필은 있어요 concedes the pencil while implying something else is missing.',['연필'],'nuance'),
+  CB('contrast','김치__ 매워요, 밥은 안 매워요.','The kimchi is spicy, the rice is not.',['는','가'],0,'The two foods are being contrasted, so 는 is correct.','The second half explicitly names the opposite case, confirming contrast. Marking 김치가 would report spiciness as news and clash with the balanced structure.',['김치','맵다']),
+  CB('form','커피__ 뜨거워요.','The coffee is hot.',['가','이'],0,'커피 ends in a vowel, so the subject particle is 가.','받침 selection is purely phonetic. 커피 ends in ㅣ with no final consonant, so 가 attaches. 이 is reserved for words ending in a consonant.',['커피']),
+  CB('form','밥__ 맛있어요.','The rice is tasty.',['이','가'],0,'밥 ends in the consonant ㅂ, so it takes 이.','The last syllable 밥 carries the 받침 ㅂ, which selects the consonant-form particle 이.',['밥']),
+  CB('form','친구__ 왔어요.','My friend came.',['가','이'],0,'친구 ends in the vowel ㅜ, so it takes 가.','No final consonant means the vowel-form particle. 친구가 is correct; 친구이 would be unpronounceable in the intended way.',['친구']),
+  CB('form','선생님__ 한국 사람이에요.','The teacher is Korean.',['은','는'],0,'선생님 ends in the consonant ㅁ, so the topic particle is 은.','The topic particle follows the same 받침 test as the subject particle. 님 ends in ㅁ, so 은 attaches.',['선생님'])],
+ reserveBank:[
+  CB('subject-ga','지금 버스__ 와요.','The bus is coming now.',['가','는'],0,'You are reporting an event as it happens, so 가 is right.','Live reports take the neutral subject particle. 버스는 와요 would contrast the bus with some other vehicle.',['버스']),
+  CB('subject-ga','가방 안에 뭐__ 있어요?','What is in the bag?',['가','는'],0,'뭐 (what) is a question word, so it takes 가.','Unknown things cannot be topics. 뭐가 있어요 asks what exists; there is no known item to frame.',['가방']),
+  CB('subject-ga','고양이__ 물을 마셔요.','The cat is drinking water.',['가','는'],0,'This reports what the cat is doing right now, so 가 fits.','A running commentary on an action uses 이/가. Switching to 고양이는 would generalise about cats instead.',['물','마시다']),
+  CB('topic-neun','저__ 매운 음식을 잘 못 먹어요.','I cannot really eat spicy food.',['는','가'],0,'The sentence is about yourself, a known topic, so 는.','Personal statements default to 저는. This is one of the most frequent patterns in everyday Korean.',['음식','먹다']),
+  CB('topic-neun','한국__ 사계절이 있어요.','Korea has four seasons.',['은','이'],0,'한국 is the established frame of the sentence, so it takes 은.','The country is the topic; the seasons are the new information, which is why they carry 이. One sentence, both particles, each doing its own job.',['한국']),
+  CB('topic-neun','이 가게__ 값이 싸요.','This shop has cheap prices.',['는','가'],0,'The shop frames the sentence, so it takes 는.','Again the topic-plus-subject pattern: 가게는 sets the scene, 값이 reports the notable fact inside it.',['가게','싸다']),
+  CB('contrast','우유는 있는데 빵__ 없어요.','There is milk, but no bread.',['은','이'],0,'The two items are contrasted, so 은 is correct.','Having one thing and lacking another is a contrast pair, so both nouns take 은/는.',['빵','없다']),
+  CB('contrast','여름__ 더운데 겨울은 추워요.','Summer is hot, but winter is cold.',['은','이'],0,'Two seasons set against each other take 은/는.','Balanced comparisons mark both halves. Neither season is news; the point is the difference between them.',['여름','겨울'],'nuance'),
+  CB('contrast','저기 판초__ 있어요.','There is a poncho over there (as opposed to something else).',['는','가'],0,'The implied "as opposed to" is carried by 는.','Both are grammatical. The gloss signals contrast, and only 은/는 can express it; 판초가 would be a neutral report.',['판초'],'nuance'),
+  CB('form','물__ 차가워요.','The water is cold.',['이','가'],0,'물 ends in the consonant ㄹ, so it takes 이.','The 받침 ㄹ counts as a final consonant, so the consonant-form particle 이 attaches.',['물']),
+  CB('form','언니__ 요리해요.','My older sister is cooking.',['가','이'],0,'언니 ends in the vowel ㅣ, so it takes 가.','No 받침 means the vowel form. 언니가 is correct.',['언니','요리하다']),
+  CB('form','시간__ 없어요.','There is no time.',['이','가'],0,'시간 ends in the consonant ㄴ, so it takes 이.','간 carries the 받침 ㄴ, selecting 이.',['시간','없다'])],
+ vocab:[
+  CW('저','I / me (polite)','noun','저는 학생이에요.','I am a student.'),
+  CW('친구','friend','noun','친구가 왔어요.','My friend came.'),
+  CW('학생','student','noun','교실에 학생이 많아요.','There are many students in the classroom.'),
+  CW('교실','classroom','noun','교실에 학생이 많아요.','There are many students in the classroom.'),
+  CW('선생님','teacher','noun','선생님은 한국 사람이에요.','The teacher is Korean.'),
+  CW('누구','who','noun','누가 왔어요?','Who came?'),
+  CW('비','rain','noun','밖에 비가 와요.','It is raining outside.'),
+  CW('날씨','weather','noun','오늘은 날씨가 좋아요.','Today the weather is good.'),
+  CW('오늘','today','noun','오늘은 날씨가 좋아요.','Today the weather is good.'),
+  CW('이름','name','noun','제 이름은 애런이에요.','My name is Aaron.'),
+  CW('밥','rice / a meal','noun','밥이 맛있어요.','The rice is tasty.'),
+  CW('김치','kimchi','noun','김치는 매워요.','The kimchi is spicy.'),
+  CW('차','tea','noun','차는 안 좋아해요.','I do not like tea.'),
+  CW('많다','to be many','adj','학생이 많아요.','There are many students.'),
+  CW('맛있다','to be tasty','adj','밥이 맛있어요.','The rice is tasty.'),
+  CW('있다','to exist / to have','verb','저기 연필이 있어요.','There is a pencil over there.'),
+  CW('없다','to not exist / to not have','verb','시간이 없어요.','There is no time.'),
+  CW('도와주다','to help','verb','친구가 저를 도와줬어요.','My friend helped me.')],
+ endings:['은','는','이','가','받침']},
+
+{courseId:'object',title:'을/를 · marking what the verb acts on',
+ tags:[{id:'object-use',label:'What 을/를 marks'},{id:'object-form',label:'을 or 를'},{id:'object-drop',label:'When to drop it'}],
+ pages:[
+  {tag:'object-use',title:'을/를 points at the thing being acted on',body:[
+   {kind:'prose',text:'English shows who does what by word order: "the dog bit the man" and "the man bit the dog" use identical words and mean opposite things. Korean does not rely on order — it labels the roles directly.'},
+   {kind:'prose',text:'을/를 attaches to the object: the thing being eaten, read, bought, met. Once it is labelled, the sentence is unambiguous no matter where the words sit.'},
+   {kind:'example',kr:'저는 밥을 먹어요.',en:'I eat rice.',note:'밥 carries 을, so it is what gets eaten.'},
+   {kind:'compare',left:{h:'Subject · 이/가',kr:'친구가',en:'the friend (does it)'},right:{h:'Object · 을/를',kr:'친구를',en:'the friend (receives it)'}}],
+   check:CB('object-use','저는 커피__ 마셔요.','I drink coffee.',['를','가'],0,
+    '커피 is what gets drunk, so it is the object and takes 를.',
+    '마시다 (to drink) acts on something, and that something is the object. 커피가 마셔요 would claim the coffee is doing the drinking.',['커피','마시다'])},
+  {tag:'object-form',title:'을 after a consonant, 를 after a vowel',body:[
+   {kind:'prose',text:'Like the subject particles, the object particle has two shapes chosen purely by sound — the same 받침 test you already know.'},
+   {kind:'table',head:['Word ends in','Particle','Example'],rows:[['consonant (받침)','을','밥을'],['vowel','를','커피를']]},
+   {kind:'prose',text:'If you can already choose between 은 and 는, you can choose between 을 and 를 — it is the identical test applied to a different particle.'},
+   {kind:'example',kr:'책을 읽고 커피를 마셔요.',en:'I read a book and drink coffee.',note:'책 ends in ㄱ so it takes 을; 커피 ends in a vowel so it takes 를.'}],
+   check:CB('object-form','친구__ 만나요.','I meet a friend.',['를','을'],0,
+    '친구 ends in the vowel ㅜ, so the object particle is 를.',
+    'The final sound of the noun decides the shape. 친구 has no 받침, so 를 attaches. 을 would follow a consonant, as in 밥을.',['친구','만나다'])},
+  {tag:'object-drop',title:'In speech, it often disappears',body:[
+   {kind:'prose',text:'In casual conversation Koreans frequently drop 을/를 when the meaning is already obvious. 밥 먹어요 is completely natural and means the same as 밥을 먹어요.'},
+   {kind:'prose',text:'Dropping it is a register choice, not an error. Keep it when you want to be clear or careful, and expect to hear it missing constantly in real speech.'},
+   {kind:'compare',left:{h:'Careful',kr:'밥을 먹었어요?',en:'Did you eat?'},right:{h:'Casual',kr:'밥 먹었어요?',en:'Did you eat?'}},
+   {kind:'prose',text:'One place to keep it: when you want to stress the object, or when the sentence would otherwise be ambiguous about which noun does what.'}],
+   check:CB('object-drop','밥 먹었어요? 라는 문장은 __.','The sentence 밥 먹었어요? is ___.',['자연스러워요','틀렸어요'],0,
+    'Dropping 을/를 in casual speech is normal and completely natural.',
+    '자연스럽다 means "to be natural"; 틀리다 means "to be wrong". Omitting the object particle is a register choice heard constantly in everyday Korean, not a mistake to correct.',['밥','먹다'],'nuance')}],
+ mainBank:[
+  CB('object-use','저는 책__ 읽어요.','I read a book.',['을','이'],0,'책 is what gets read, so it is the object and takes 을.','읽다 (to read) acts on something. Marking 책이 would make the book the reader.',['책','읽다']),
+  CB('object-use','친구__ 만나요.','I meet a friend.',['를','가'],0,'The friend is the one being met, so 를 marks them as the object.','만나다 (to meet) takes an object. 친구가 만나요 would say the friend is doing the meeting.',['친구','만나다']),
+  CB('object-use','물__ 마셔요.','I drink water.',['을','이'],0,'물 is what gets drunk, so it takes the object particle 을.','The drinker is the subject; the drink is the object. 물 ends in ㄹ so the shape is 을.',['물','마시다']),
+  CB('object-use','한국어__ 공부해요.','I study Korean.',['를','가'],0,'한국어 is the thing being studied, so it takes 를.','공부하다 (to study) acts on a subject matter, which is the grammatical object.',['한국어','공부하다']),
+  CB('object-form','밥__ 먹어요.','I eat rice.',['을','를'],0,'밥 ends in the consonant ㅂ, so the object particle is 을.','받침 ㅂ selects the consonant form 을.',['밥','먹다']),
+  CB('object-form','커피__ 좋아해요.','I like coffee.',['를','을'],0,'커피 ends in a vowel, so it takes 를.','No final consonant means the vowel-form particle 를.',['커피','좋아하다']),
+  CB('object-form','사진__ 찍어요.','I take a photo.',['을','를'],0,'사진 ends in the consonant ㄴ, so it takes 을.','진 carries the 받침 ㄴ, selecting 을.',['사진','찍다']),
+  CB('object-form','영화__ 봐요.','I watch a movie.',['를','을'],0,'영화 ends in the vowel ㅘ, so it takes 를.','화 has no final consonant, so 를 attaches.',['영화','보다']),
+  CB('object-drop','밥 먹었어요? 에서 생략된 것은 __ 이에요.','What is omitted in 밥 먹었어요? is ___.',['을','이'],0,'The dropped particle is the object marker 을.','밥 is what gets eaten, so the full form is 밥을 먹었어요. Casual speech drops the object particle, never the meaning.',['밥','먹다']),
+  CB('object-drop','친한 친구에게는 조사를 __ 돼요.','With a close friend you ___ drop the particle.',['생략해도','생략하면 안'],0,'생략해도 돼요 means "it is fine to omit it" — casual speech regularly does.','생략하다 means "to omit". Among friends, dropping 을/를 is the norm rather than a shortcut to avoid.',[],'nuance'),
+  CB('object-drop','시험에서는 조사를 __ 좋아요.','On a test it is better to ___ the particle.',['쓰는 게','빼는 게'],0,'쓰는 게 좋아요 — write it out when you are being careful or graded.','쓰다 means "to write / use"; 빼다 means "to leave out". Formal and written Korean keeps the particle, even though speech often drops it.',[],'nuance')],
+ reserveBank:[
+  CB('object-use','저는 음악__ 들어요.','I listen to music.',['을','이'],0,'음악 is what gets listened to, so it takes the object particle.','듣다 (to listen) acts on something; that something is the object.',['음악','듣다']),
+  CB('object-use','언니가 옷__ 사요.','My older sister buys clothes.',['을','이'],0,'The clothes are what gets bought, so 을 marks them.','Note both particles at work: 언니가 does the buying, 옷을 receives the action.',['옷','사다']),
+  CB('object-use','아이가 우유__ 마셔요.','The child drinks milk.',['를','가'],0,'우유 is the thing being drunk, so it takes 를.','우유 ends in a vowel, so the object shape is 를.',['우유','마시다']),
+  CB('object-form','문__ 열어요.','I open the door.',['을','를'],0,'문 ends in the consonant ㄴ, so it takes 을.','받침 ㄴ selects the consonant form.',['문','열다']),
+  CB('object-form','한국 노래__ 좋아해요.','I like Korean songs.',['를','을'],0,'노래 ends in a vowel, so it takes 를.','래 has no final consonant, so 를 attaches.',['노래','좋아하다']),
+  CB('object-form','신문__ 읽어요.','I read the newspaper.',['을','를'],0,'신문 ends in the consonant ㄴ, so it takes 을.','문 carries the 받침 ㄴ.',['신문','읽다']),
+  CB('object-drop','친구 만났어요 는 __ 표현이에요.','친구 만났어요 is a ___ expression.',['자연스러운','틀린'],0,'It is natural — the object particle is simply dropped in speech.','자연스럽다 (to be natural) versus 틀리다 (to be wrong). Particle-dropping is standard casual Korean.',['친구','만나다'],'nuance'),
+  CB('object-drop','조사를 살리면 그 단어가 더 __.','Keeping the particle makes that word more ___.',['분명해져요','약해져요'],0,'분명해지다 — keeping it adds clarity and emphasis.','분명하다 means "to be clear"; 약하다 means "to be weak". Restoring a dropped particle draws attention back to the object.',[],'nuance'),
+  CB('object-drop','글을 쓸 때는 조사를 __.','When writing, you ___ the particle.',['써요','빼요'],0,'Written Korean keeps 을/를 even though speech often drops it.','쓰다 (to write / use) versus 빼다 (to leave out). Dropping particles belongs to casual speech; written and formal Korean spells them out.',[],'nuance')],
+ vocab:[
+  CW('책','book','noun','책을 읽어요.','I read a book.'),
+  CW('읽다','to read','verb','책을 읽어요.','I read a book.'),
+  CW('만나다','to meet','verb','친구를 만나요.','I meet a friend.'),
+  CW('사다','to buy','verb','옷을 사요.','I buy clothes.'),
+  CW('보다','to watch / to see','verb','영화를 봐요.','I watch a movie.'),
+  CW('듣다','to listen','verb','음악을 들어요.','I listen to music.'),
+  CW('찍다','to take (a photo)','verb','사진을 찍어요.','I take a photo.'),
+  CW('열다','to open','verb','문을 열어요.','I open the door.'),
+  CW('옷','clothes','noun','옷을 사요.','I buy clothes.'),
+  CW('영화','movie','noun','영화를 봐요.','I watch a movie.'),
+  CW('음악','music','noun','음악을 들어요.','I listen to music.'),
+  CW('사진','photo','noun','사진을 찍어요.','I take a photo.'),
+  CW('문','door','noun','문을 열어요.','I open the door.'),
+  CW('우유','milk','noun','우유를 마셔요.','I drink milk.'),
+  CW('한국어','Korean (language)','noun','한국어를 공부해요.','I study Korean.'),
+  CW('노래','song','noun','노래를 좋아해요.','I like songs.')],
+ endings:['을','를']},
+
+{courseId:'place',title:'에 and 에서 · where things are and where they happen',
+ tags:[{id:'e-place',label:'에 · destination and location'},{id:'eseo-action',label:'에서 · where the action happens'},{id:'e-time',label:'에 · at a time'}],
+ pages:[
+  {tag:null,title:'One question decides between them',body:[
+   {kind:'prose',text:'These two particles both translate as "at" or "in", which is exactly why they get confused. English gives you no help here, so learn the test instead of the translation.'},
+   {kind:'prose',text:'Ask: is something happening there, or is something simply located there? An action taking place somewhere uses 에서. Existence, or movement towards a place, uses 에.'},
+   {kind:'compare',left:{h:'에 · being there',kr:'집에 있어요.',en:'I am at home.'},right:{h:'에서 · doing there',kr:'집에서 먹어요.',en:'I eat at home.'}},
+   {kind:'prose',text:'Notice the verb is the giveaway. 있다 (to exist) and 가다 (to go) pair with 에; active verbs like 먹다, 공부하다, 일하다 pair with 에서.'}],
+   check:CB('e-place','학교__ 가요.','I go to school.',['에','에서'],0,
+    '가다 is movement towards a place, which always takes 에.',
+    '가다 (to go) and 오다 (to come) mark their destination with 에. 학교에서 가요 would mean you are departing from the school rather than heading to it.',['학교','가다'])},
+  {tag:'e-place',title:'에 · where something is, or where you are heading',body:[
+   {kind:'prose',text:'에 marks a destination or a static location. Use it with movement verbs and with 있다 / 없다.'},
+   {kind:'example',kr:'저는 집에 있어요.',en:'I am at home.'},
+   {kind:'example',kr:'친구가 한국에 가요.',en:'My friend is going to Korea.'},
+   {kind:'prose',text:'It is also the particle for a recipient in phrases like 친구에게 (to a friend), though the fuller form 에게 is used for people.'}],
+   check:CB('e-place','가방 안__ 책이 있어요.','There is a book in the bag.',['에','에서'],0,
+    '있다 states location, so the place takes 에.',
+    '있다 (to exist) never takes 에서 — nothing is being done, something simply is. 가방 안에 marks where the book sits.',['가방','책','있다'])},
+  {tag:'eseo-action',title:'에서 · the stage the action happens on',body:[
+   {kind:'prose',text:'When a real action takes place somewhere, that place takes 에서. The place is the setting for the activity.'},
+   {kind:'example',kr:'저는 식당에서 밥을 먹어요.',en:'I eat at a restaurant.'},
+   {kind:'example',kr:'도서관에서 공부해요.',en:'I study at the library.'},
+   {kind:'prose',text:'에서 has a second job: marking where you came from. 한국에서 왔어요 means "I came from Korea". Same particle, and the logic still holds — the motion originates at that place.'},
+   {kind:'compare',left:{h:'Location of action',kr:'카페에서 일해요.',en:'I work at a cafe.'},right:{h:'Origin',kr:'미국에서 왔어요.',en:'I came from America.'}}],
+   check:CB('eseo-action','도서관__ 공부해요.','I study at the library.',['에서','에'],0,
+    '공부하다 is an action, so its location takes 에서.',
+    'Studying is something you actively do, and the library is the stage for it. 도서관에 공부해요 is ungrammatical; 에 would only work with 있다 or a movement verb.',['도서관','공부하다'])},
+  {tag:'e-time',title:'에 · pinning a time',body:[
+   {kind:'prose',text:'에 also marks when something happens. There is no 에서 for time — this half is simpler than it looks.'},
+   {kind:'example',kr:'세 시에 만나요.',en:'Let us meet at three o\'clock.'},
+   {kind:'prose',text:'One important exception: the words 오늘 (today), 내일 (tomorrow), 어제 (yesterday) and 지금 (now) never take 에. Saying 오늘에 marks you instantly as a learner.'},
+   {kind:'table',head:['Takes 에','No particle'],rows:[['월요일에 (on Monday)','오늘 (today)'],['아침에 (in the morning)','지금 (now)'],['세 시에 (at 3)','어제 (yesterday)']]}],
+   check:CB('e-time','__ 뭐 해요?','What are you doing today?',['오늘','오늘에'],0,
+    '오늘 never takes 에 — it stands alone.',
+    '오늘, 어제, 내일 and 지금 are among the few time words that refuse 에. Clock times, days and months all take it: 세 시에, 월요일에.',['오늘'])}],
+ mainBank:[
+  CB('e-place','저는 지금 집__ 있어요.','I am at home right now.',['에','에서'],0,'있다 states location, so the place takes 에.','Existence verbs never take 에서. Nothing is happening — you simply are somewhere.',['집','있다']),
+  CB('e-place','친구가 한국__ 가요.','My friend is going to Korea.',['에','에서'],0,'가다 marks its destination with 에.','Movement towards a place uses 에. 한국에서 가요 would mean departing from Korea.',['한국','가다']),
+  CB('e-place','책상 위__ 커피가 있어요.','There is coffee on the desk.',['에','에서'],0,'This states where the coffee sits, so 에.','Position statements pair with 있다 and take 에.',['책상','커피','있다']),
+  CB('e-place','내일 병원__ 가요.','I am going to the hospital tomorrow.',['에','에서'],0,'A destination takes 에.','가다 always points at its goal with 에.',['병원','가다']),
+  CB('eseo-action','식당__ 밥을 먹어요.','I eat at a restaurant.',['에서','에'],0,'Eating is an action, so its location takes 에서.','먹다 is an active verb and the restaurant is the stage for it.',['식당','먹다']),
+  CB('eseo-action','카페__ 일해요.','I work at a cafe.',['에서','에'],0,'Working is an action, so 에서 marks where it happens.','일하다 (to work) is active, so the place takes 에서.',['카페','일하다']),
+  CB('eseo-action','저는 미국__ 왔어요.','I came from America.',['에서','에'],0,'에서 also marks the place you came from.','오다 (to come) takes 에서 for its origin and 에 for its destination. Here America is the starting point.',['미국','오다']),
+  CB('eseo-action','공원__ 사진을 찍어요.','I take photos at the park.',['에서','에'],0,'Taking photos is an action, so the park takes 에서.','찍다 is active, so its setting uses 에서.',['공원','찍다']),
+  CB('e-time','일곱 시__ 일어나요.','I get up at seven o\'clock.',['에','에서'],0,'Clock times take 에.','Time is always marked with 에; there is no 에서 for time.',['일어나다']),
+  CB('e-time','__ 친구를 만나요.','I am meeting a friend today.',['오늘','오늘에'],0,'오늘 stands alone without 에.','오늘, 어제, 내일 and 지금 reject 에. Other time expressions accept it.',['오늘','만나다']),
+  CB('e-time','월요일__ 학교에 가요.','I go to school on Monday.',['에','에서'],0,'Days of the week take 에.','월요일 is a specific time point, so 에 attaches normally.',['월요일','학교']),
+  CB('e-time','아침__ 커피를 마셔요.','I drink coffee in the morning.',['에','에서'],0,'Parts of the day take 에.','아침 (morning) is a time expression and takes 에, unlike 오늘.',['아침','커피'])],
+ reserveBank:[
+  CB('e-place','고양이가 의자 밑__ 있어요.','The cat is under the chair.',['에','에서'],0,'Location with 있다 takes 에.','있다 describes position, never activity, so 에서 is impossible here.',['의자','있다']),
+  CB('e-place','우리는 부산__ 가요.','We are going to Busan.',['에','에서'],0,'A destination takes 에.','가다 points at its goal with 에.',['가다']),
+  CB('e-place','가게__ 사람이 없어요.','There is nobody in the shop.',['에','에서'],0,'없다 states location, so 에.','없다 is the negative of 있다 and behaves identically.',['가게','없다']),
+  CB('eseo-action','집__ 요리해요.','I cook at home.',['에서','에'],0,'Cooking is an action, so home takes 에서.','요리하다 is active, so its setting uses 에서.',['집','요리하다']),
+  CB('eseo-action','학교__ 한국어를 배워요.','I learn Korean at school.',['에서','에'],0,'Learning is an action, so the school takes 에서.','배우다 (to learn) is active. Compare 학교에 가요, where 가다 needs 에.',['학교','배우다']),
+  CB('eseo-action','시장__ 과일을 사요.','I buy fruit at the market.',['에서','에'],0,'Buying is an action, so the market takes 에서.','사다 is active, so 에서 marks the place of purchase.',['시장','사다']),
+  CB('e-time','저는 여섯 시__ 저녁을 먹어요.','I eat dinner at six.',['에','에서'],0,'Clock times take 에.','Time expressions with numbers always take 에.',['저녁','먹다']),
+  CB('e-time','__ 뭐 했어요?','What did you do yesterday?',['어제','어제에'],0,'어제 stands alone without 에.','어제 belongs to the small set of time words that refuse 에.',['어제']),
+  CB('e-time','주말__ 영화를 봐요.','I watch movies on the weekend.',['에','에서'],0,'주말 is a time expression, so it takes 에.','Weekends, days and months all take 에.',['주말','영화'])],
+ vocab:[
+  CW('집','house / home','noun','저는 집에 있어요.','I am at home.'),
+  CW('학교','school','noun','학교에 가요.','I go to school.'),
+  CW('식당','restaurant','noun','식당에서 밥을 먹어요.','I eat at a restaurant.'),
+  CW('도서관','library','noun','도서관에서 공부해요.','I study at the library.'),
+  CW('카페','cafe','noun','카페에서 일해요.','I work at a cafe.'),
+  CW('공원','park','noun','공원에서 사진을 찍어요.','I take photos at the park.'),
+  CW('시장','market','noun','시장에서 과일을 사요.','I buy fruit at the market.'),
+  CW('가게','shop','noun','가게에 사람이 없어요.','There is nobody in the shop.'),
+  CW('병원','hospital','noun','병원에 가요.','I go to the hospital.'),
+  CW('가방','bag','noun','가방 안에 책이 있어요.','There is a book in the bag.'),
+  CW('책상','desk','noun','책상 위에 커피가 있어요.','There is coffee on the desk.'),
+  CW('아침','morning','noun','아침에 커피를 마셔요.','I drink coffee in the morning.'),
+  CW('저녁','evening / dinner','noun','저녁을 먹어요.','I eat dinner.'),
+  CW('어제','yesterday','noun','어제 뭐 했어요?','What did you do yesterday?'),
+  CW('내일','tomorrow','noun','내일 병원에 가요.','I am going to the hospital tomorrow.'),
+  CW('오다','to come','verb','저는 미국에서 왔어요.','I came from America.'),
+  CW('일하다','to work','verb','카페에서 일해요.','I work at a cafe.'),
+  CW('배우다','to learn','verb','학교에서 한국어를 배워요.','I learn Korean at school.'),
+  CW('일어나다','to get up','verb','일곱 시에 일어나요.','I get up at seven.')],
+ endings:['에','에서','에게']},
+
+{courseId:'past',title:'Past tense · 았어요 and 었어요',
+ tags:[{id:'past-form',label:'Building the past'},{id:'past-hada',label:'하다 in the past'}],
+ pages:[
+  {tag:'past-form',title:'Insert 았 or 었 before the ending',body:[
+   {kind:'prose',text:'The past tense uses the same bright-vowel test you already learned for 아요 and 어요. Take the stem, add 았 or 었, then finish with 어요.'},
+   {kind:'table',head:['Last stem vowel','Past','Example'],rows:[['ㅏ or ㅗ','았어요','좋다 → 좋았어요'],['anything else','었어요','먹다 → 먹었어요']]},
+   {kind:'prose',text:'If you can already choose between 아요 and 어요, you have nothing new to learn — the same vowel decides both.'},
+   {kind:'example',kr:'어제 김치를 먹었어요.',en:'I ate kimchi yesterday.'},
+   {kind:'prose',text:'Stems ending in a vowel contract exactly as they do in the present: 가 + 았어요 becomes 갔어요, not 가았어요.'}],
+   check:CB('past-form','저는 어제 학교에 __.','I went to school yesterday.',['갔어요','가았어요'],0,
+    '가 + 았어요 contracts to 갔어요.',
+    'When the stem already ends in ㅏ, Korean merges the vowels rather than repeating them. 가았어요 is never written or said; the contracted 갔어요 is the only form.',['가다','학교'])},
+  {tag:'past-form',title:'The past is not optional',body:[
+   {kind:'prose',text:'English sometimes leaves tense to context — "yesterday I go" is understandable but wrong. Korean is stricter: if it already happened, the verb must carry 았/었, even when a time word like 어제 makes it obvious.'},
+   {kind:'compare',left:{h:'Wrong',kr:'어제 밥을 먹어요.',en:'(sounds like you eat it daily)'},right:{h:'Right',kr:'어제 밥을 먹었어요.',en:'I ate yesterday.'}},
+   {kind:'prose',text:'One thing that surprises learners: 있다 and 없다 have regular past forms, 있었어요 and 없었어요 — the double 있 is correct, not a typo.'},
+   {kind:'example',kr:'시간이 없었어요.',en:'I did not have time.'}],
+   check:CB('past-form','어제 시간이 __.','I did not have time yesterday.',['없었어요','없어요'],0,
+    'The event is in the past, so 없다 must become 없었어요.',
+    'Korean marks tense on the verb even when a time word already signals it. 어제 없어요 mixes a past time with a present verb, which sounds wrong to a Korean ear.',['시간','없다'])},
+  {tag:'past-hada',title:'하다 verbs become 했어요',body:[
+   {kind:'prose',text:'Just as 하다 becomes 해요 in the present, it becomes 했어요 in the past. Every noun + 하다 compound follows.'},
+   {kind:'table',head:['Present','Past','Meaning'],rows:[['해요','했어요','do / did'],['공부해요','공부했어요','study / studied'],['요리해요','요리했어요','cook / cooked'],['좋아해요','좋아했어요','like / liked']]},
+   {kind:'example',kr:'어제 한국어를 공부했어요.',en:'I studied Korean yesterday.'},
+   {kind:'prose',text:'This single pattern covers a very large share of Korean verbs, so it is worth over-practising until it is automatic.'}],
+   check:CB('past-hada','어제 친구를 만나고 요리__.','Yesterday I met a friend and cooked.',['했어요','았어요'],0,
+    '요리하다 is a 하다 verb, so its past form is 요리했어요.',
+    'Every 하다 compound goes to 했어요 in the past. 았어요 belongs to plain stems ending in ㅏ or ㅗ, like 좋다 → 좋았어요.',['요리하다','만나다'])}],
+ mainBank:[
+  CB('past-form','저는 어제 김치를 __.','I ate kimchi yesterday.',['먹었어요','먹어요'],0,'A past event needs 먹었어요.','먹 has ㅓ as its vowel, so the past marker is 었, giving 먹었어요.',['먹다','김치']),
+  CB('past-form','날씨가 __.','The weather was good.',['좋았어요','좋었어요'],0,'좋 has ㅗ, so it takes 았어요.','The bright vowels ㅏ and ㅗ select 았; everything else takes 었.',['좋다','날씨']),
+  CB('past-form','어제 물을 많이 __.','I drank a lot of water yesterday.',['마셨어요','마시었어요'],0,'마시 + 었어요 contracts to 마셨어요.','Stems ending in ㅣ contract with 었 into 셨. The uncontracted form is not used in speech.',['마시다','물']),
+  CB('past-form','친구가 집에 __.','My friend came home.',['왔어요','오았어요'],0,'오 + 았어요 contracts to 왔어요.','오다 has the bright vowel ㅗ, so it takes 았, and the two vowels merge into 왔어요.',['오다','집']),
+  CB('past-form','시간이 __.','There was no time.',['없었어요','없어요'],0,'The past of 없다 is 없었어요.','없다 conjugates regularly: stem 없 has ㅓ, so it takes 었어요.',['시간','없다']),
+  CB('past-form','어제 책을 __.','I read a book yesterday.',['읽었어요','읽어요'],0,'A past action needs 읽었어요.','Korean requires the tense marker even when 어제 already says it happened.',['읽다','책']),
+  CB('past-hada','어제 한국어를 __.','I studied Korean yesterday.',['공부했어요','공부었어요'],0,'공부하다 becomes 공부했어요 in the past.','All 하다 verbs go to 했어요. The plain 었어요 ending never attaches to 하다.',['공부하다','한국어']),
+  CB('past-hada','주말에 뭐 __?','What did you do on the weekend?',['했어요','핬어요'],0,'The past of 하다 is 했어요.','하다 is irregular in both tenses: 해요 in the present, 했어요 in the past.',['하다','주말']),
+  CB('past-hada','저는 그 영화를 __.','I liked that movie.',['좋아했어요','좋았어요'],0,'좋아하다 is a 하다 verb, so its past is 좋아했어요.','좋았어요 is the past of 좋다 (to be good) and would describe the movie itself. 좋아했어요 describes your feeling about it.',['좋아하다','영화']),
+  CB('past-hada','어제 식당에서 식사__.','I had a meal at a restaurant yesterday.',['했어요','었어요'],0,'식사하다 is a 하다 verb giving 식사했어요.','Noun + 하다 compounds always take 했어요 in the past.',['식사하다','식당'])],
+ reserveBank:[
+  CB('past-form','아침에 커피를 __.','I drank coffee in the morning.',['마셨어요','마셔요'],0,'The morning has passed, so the verb takes the past form.','아침에 with a present-tense verb would describe a habit rather than this morning.',['커피','마시다']),
+  CB('past-form','그 음식이 너무 __.','That food was too spicy.',['매웠어요','맵었어요'],0,'맵다 is irregular: its past is 매웠어요.','ㅂ-irregular verbs change ㅂ to 우 before an ending, giving 매워요 and 매웠어요.',['맵다','음식']),
+  CB('past-form','친구를 카페에서 __.','I met a friend at a cafe.',['만났어요','만나았어요'],0,'만나 + 았어요 contracts to 만났어요.','A stem ending in ㅏ merges with 았 rather than repeating the vowel.',['만나다','카페']),
+  CB('past-form','어제 영화를 __.','I watched a movie yesterday.',['봤어요','보았어요'],0,'보 + 았어요 contracts to 봤어요 in speech.','보았어요 exists in writing, but everyday spoken Korean uses the contracted 봤어요.',['보다','영화']),
+  CB('past-form','가방 안에 책이 __.','There was a book in the bag.',['있었어요','있어요'],0,'The past of 있다 is 있었어요.','The doubled 있 looks odd but is correct: stem 있 plus 었어요.',['가방','있다']),
+  CB('past-hada','어제 집에서 __.','I cooked at home yesterday.',['요리했어요','요리었어요'],0,'요리하다 becomes 요리했어요.','Every 하다 compound uses 했어요 in the past.',['요리하다','집']),
+  CB('past-hada','우리는 공원에서 운동__.','We exercised at the park.',['했어요','았어요'],0,'운동하다 is a 하다 verb, so 운동했어요.','The noun in front never changes; only 하다 conjugates.',['운동하다','공원']),
+  CB('past-hada','그 사람을 어제 __.','I met that person yesterday.',['만났어요','만나했어요'],0,'만나다 is not a 하다 verb — its past is 만났어요.','Only verbs that literally end in 하다 take 했어요. 만나다 is a plain stem and contracts to 만났어요.',['만나다'],'nuance')],
+ vocab:[
+  CW('어제','yesterday','noun','어제 김치를 먹었어요.','I ate kimchi yesterday.'),
+  CW('주말','weekend','noun','주말에 뭐 했어요?','What did you do on the weekend?'),
+  CW('시간','time','noun','시간이 없었어요.','There was no time.'),
+  CW('운동하다','to exercise','verb','공원에서 운동했어요.','I exercised at the park.'),
+  CW('식사하다','to have a meal','verb','식당에서 식사했어요.','I had a meal at a restaurant.'),
+  CW('많이','a lot','adv','물을 많이 마셨어요.','I drank a lot of water.')],
+ endings:['았어요','었어요','했어요']},
+
+{courseId:'negation',title:'Saying no · 안 and 못',
+ tags:[{id:'an',label:'안 · simply not'},{id:'mot',label:'못 · cannot'},{id:'neg-hada',label:'Negating 하다 verbs'}],
+ pages:[
+  {tag:'an',title:'안 goes in front of the verb',body:[
+   {kind:'prose',text:'The quickest negation in Korean is one syllable placed directly before the verb. Nothing else in the sentence changes.'},
+   {kind:'example',kr:'저는 커피를 안 마셔요.',en:'I do not drink coffee.'},
+   {kind:'prose',text:'There is a longer written form, -지 않아요, which means the same thing: 마시지 않아요. Both are correct; 안 is what you will hear in conversation.'},
+   {kind:'compare',left:{h:'Spoken',kr:'안 먹어요',en:'I do not eat it'},right:{h:'Formal / written',kr:'먹지 않아요',en:'I do not eat it'}}],
+   check:CB('an','저는 고기를 __ 먹어요.','I do not eat meat.',['안','못'],0,
+    '안 states a plain choice — you simply do not eat it.',
+    '안 negates by preference or fact. 못 would say you are unable to eat meat, implying an allergy or some external obstacle rather than a decision.',['고기','먹다'])},
+  {tag:'mot',title:'못 · unable, not unwilling',body:[
+   {kind:'prose',text:'못 also sits in front of the verb, but it means you cannot — something prevents you. The difference from 안 is entirely about capability versus choice.'},
+   {kind:'compare',left:{h:'안 · choice',kr:'술을 안 마셔요.',en:'I do not drink (I choose not to).'},right:{h:'못 · inability',kr:'술을 못 마셔요.',en:'I cannot drink (my body cannot).'}},
+   {kind:'prose',text:'Getting this wrong changes the social meaning of a sentence. Turning down food with 안 먹어요 can sound like you dislike it; 못 먹어요 blames circumstances and is gentler.'},
+   {kind:'example',kr:'시간이 없어서 못 갔어요.',en:'I could not go because I had no time.'}],
+   check:CB('mot','매운 음식을 잘 __ 먹어요.','I cannot really eat spicy food.',['못','안'],0,
+    'This describes an inability to handle spice, so 못 is right.',
+    '잘 못 먹어요 is a set phrase meaning "cannot handle it well". Using 안 would say you deliberately avoid spicy food, which is a different claim.',['음식','먹다'],'nuance')},
+  {tag:'neg-hada',title:'하다 verbs split in two',body:[
+   {kind:'prose',text:'With noun + 하다 verbs, the negator goes between the noun and 하다, not in front of the whole word. This trips up nearly every learner once.'},
+   {kind:'compare',left:{h:'Wrong',kr:'안 공부해요',en:'(sounds broken)'},right:{h:'Right',kr:'공부 안 해요',en:'I do not study'}},
+   {kind:'prose',text:'The reason is that 공부하다 is really two pieces — a noun and the verb "do". The negator attaches to the verb half, which sits at the end.'},
+   {kind:'table',head:['Verb','Negative'],rows:[['공부하다','공부 안 해요'],['요리하다','요리 안 해요'],['운동하다','운동 못 해요']]},
+   {kind:'prose',text:'Plain verbs that merely happen to contain 하 — like 좋아하다 — behave the same way: 좋아 안 해요 is odd, and Koreans say 안 좋아해요. Treat 좋아하다 as one unit.'}],
+   check:CB('neg-hada','오늘은 요리 __ 해요.','I am not cooking today.',['안','못'],0,
+    'With 하다 verbs the negator sits between the noun and 하다: 요리 안 해요.',
+    '요리하다 splits into 요리 (cooking) and 하다 (to do). The negator attaches to 하다, giving 요리 안 해요. Putting 안 in front of the whole compound sounds broken to native ears.',['요리하다'])}],
+ mainBank:[
+  CB('an','저는 커피를 __ 마셔요.','I do not drink coffee.',['안','못'],0,'A plain preference takes 안.','안 negates by choice. 못 would claim you are unable to drink coffee at all.',['커피','마시다']),
+  CB('an','오늘은 학교에 __ 가요.','I am not going to school today.',['안','못'],0,'This is a simple statement of fact, so 안.','안 states that something is not happening. Nothing suggests you are prevented.',['학교','가다']),
+  CB('an','그 영화는 __ 봤어요.','I did not watch that movie.',['안','못'],0,'A plain past negation uses 안.','안 works in the past too — it sits in front and the verb carries the tense: 안 봤어요.',['영화','보다']),
+  CB('an','김치가 __ 매워요.','The kimchi is not spicy.',['안','못'],0,'Adjectives negate with 안.','못 cannot negate a descriptive adjective — there is no ability involved in being spicy.',['김치','맵다']),
+  CB('mot','다리를 다쳐서 __ 걸어요.','I cannot walk because I hurt my leg.',['못','안'],0,'An injury prevents it, so 못.','못 marks an external obstacle. 안 걸어요 would mean you are choosing not to walk.',['걷다']),
+  CB('mot','바빠서 어제 __ 갔어요.','I could not go yesterday because I was busy.',['못','안'],0,'Being busy prevented it, so 못.','A reason clause explaining an obstacle almost always pairs with 못.',['가다','바쁘다']),
+  CB('mot','저는 술을 __ 마셔요.','I cannot drink alcohol.',['못','안'],0,'The gloss says "cannot", which is 못.','못 마셔요 points at a physical limit; 안 마셔요 would be a personal rule.',['술','마시다'],'nuance'),
+  CB('mot','한국어를 아직 잘 __ 해요.','I still cannot speak Korean well.',['못','안'],0,'Lacking the skill is an inability, so 못.','잘 못 해요 means "cannot do it well". Skill gaps always take 못.',['한국어','하다']),
+  CB('neg-hada','저는 주말에 공부 __ 해요.','I do not study on the weekend.',['안','못'],0,'하다 verbs split: 공부 안 해요.','The negator goes between the noun and 하다, never in front of the whole compound.',['공부하다','주말']),
+  CB('neg-hada','시간이 없어서 운동 __ 했어요.','I could not exercise because I had no time.',['못','안'],0,'No time is an obstacle, and the negator splits the 하다 verb.','운동 못 했어요 combines both rules: 못 for inability, and the split position for 하다 verbs.',['운동하다','시간']),
+  CB('neg-hada','저는 그 사람을 __ 좋아해요.','I do not like that person.',['안','좋아 안'],0,'좋아하다 is treated as one unit: 안 좋아해요.','Although it contains 하다, 좋아하다 is lexicalised as a single verb, so the negator goes in front of the whole thing.',['좋아하다'],'nuance')],
+ reserveBank:[
+  CB('an','저는 고기를 __ 먹어요.','I do not eat meat.',['안','못'],0,'A dietary choice takes 안.','안 states a decision. 못 would suggest you physically cannot.',['고기','먹다']),
+  CB('an','오늘 비가 __ 와요.','It is not raining today.',['안','못'],0,'Weather is a plain fact, so 안.','못 requires an agent capable of trying; rain cannot be prevented from trying.',['비','오다']),
+  CB('an','그 가게는 오늘 __ 열어요.','That shop is not open today.',['안','못'],0,'A simple statement of fact takes 안.','안 열어요 reports the shop is closed today.',['가게','열다']),
+  CB('mot','너무 매워서 __ 먹었어요.','It was so spicy I could not eat it.',['못','안'],0,'The spice prevented eating, so 못.','A cause clause explaining why something was impossible pairs with 못.',['맵다','먹다']),
+  CB('mot','표가 없어서 영화를 __ 봤어요.','I could not watch the movie because there were no tickets.',['못','안'],0,'An external obstacle takes 못.','No tickets is a circumstance outside your control, which is exactly what 못 marks.',['영화','보다']),
+  CB('mot','저는 수영을 __ 해요.','I cannot swim.',['못','안'],0,'Lacking the skill is 못.','수영 못 해요 says you never learned. 수영 안 해요 would mean you choose not to swim.',['수영하다'],'nuance'),
+  CB('neg-hada','오늘은 요리 __ 해요.','I am not cooking today.',['안','못'],0,'하다 verbs split, so 요리 안 해요.','The negator attaches to the 하다 half.',['요리하다']),
+  CB('neg-hada','저는 아침에 운동 __ 해요.','I do not exercise in the morning.',['안','못'],0,'운동하다 splits, so the negator sits before 해요.','운동 안 해요 states a choice. The negator always attaches to the 하다 half of a compound verb.',['운동하다','아침']),
+  CB('neg-hada','바빠서 식사 __ 했어요.','I could not eat because I was busy.',['못','안'],0,'Being busy prevented it, and the 하다 verb splits.','식사 못 했어요 applies both rules at once.',['식사하다'])],
+ vocab:[
+  CW('안','not','adv','저는 커피를 안 마셔요.','I do not drink coffee.'),
+  CW('못','cannot','adv','술을 못 마셔요.','I cannot drink alcohol.'),
+  CW('고기','meat','noun','저는 고기를 안 먹어요.','I do not eat meat.'),
+  CW('술','alcohol','noun','술을 못 마셔요.','I cannot drink alcohol.'),
+  CW('바쁘다','to be busy','adj','오늘은 바빠요.','I am busy today.'),
+  CW('걷다','to walk','verb','공원에서 걸어요.','I walk in the park.'),
+  CW('수영하다','to swim','verb','저는 수영을 못 해요.','I cannot swim.')],
+ endings:['안','못','지 않아요']},
+
+{courseId:'want',title:'-고 싶어요 · saying what you want',
+ tags:[{id:'want-form',label:'Building -고 싶어요'},{id:'want-object',label:'What the wanting acts on'},{id:'want-other',label:'Wanting vs. other people'}],
+ pages:[
+  {tag:'want-form',title:'Attach -고 싶어요 to any verb stem',body:[
+   {kind:'prose',text:'This is the first ending that expresses an attitude rather than a time. Take the stem, add -고 싶어요, and you have said you want to do it. There is no vowel test — the ending is identical for every verb.'},
+   {kind:'table',head:['Verb','Stem','Want to'],rows:[['먹다','먹','먹고 싶어요'],['가다','가','가고 싶어요'],['마시다','마시','마시고 싶어요'],['하다','하','하고 싶어요']]},
+   {kind:'example',kr:'저는 김치를 먹고 싶어요.',en:'I want to eat kimchi.'},
+   {kind:'prose',text:'Note that 하다 does not become 해 here. The irregular 해요 only appears when 하다 takes a polite ending directly; before -고 the plain stem 하 is used.'}],
+   check:CB('want-form','저는 한국에 __ 싶어요.','I want to go to Korea.',['가고','가서'],0,
+    'The pattern is stem + 고 싶어요, so 가 + 고 gives 가고 싶어요.',
+    '-고 is the connector this pattern requires. -서 is a different ending meaning "and so / because", which would not express wanting.',['가다','한국'])},
+  {tag:'want-form',title:'The politeness sits at the end, as always',body:[
+   {kind:'prose',text:'싶어요 is itself a conjugated verb — 싶다 (to want) in the polite form. That means the whole tense and politeness of the sentence lives in it, not in the main verb.'},
+   {kind:'compare',left:{h:'Present',kr:'먹고 싶어요',en:'I want to eat'},right:{h:'Past',kr:'먹고 싶었어요',en:'I wanted to eat'}},
+   {kind:'prose',text:'So to say you wanted something in the past, you do not touch 먹고 at all — you move 싶어요 into the past: 싶었어요. The main verb stays frozen in its stem + 고 form.'},
+   {kind:'example',kr:'어제 영화를 보고 싶었어요.',en:'I wanted to watch a movie yesterday.'}],
+   check:CB('want-form','어제 커피를 마시고 __.','I wanted coffee yesterday.',['싶었어요','싶어요'],0,
+    'The wanting happened yesterday, so 싶다 takes the past form 싶었어요.',
+    'Tense lives on 싶다, never on the first verb. 마시고 stays exactly as it is; only the ending moves to the past.',['마시다','커피'])},
+  {tag:'want-object',title:'The object still takes 을/를',body:[
+   {kind:'prose',text:'Wanting does not change how the rest of the sentence is marked. Whatever the verb acts on keeps its normal object particle.'},
+   {kind:'example',kr:'물을 마시고 싶어요.',en:'I want to drink water.',note:'물 keeps 을 exactly as it would in 물을 마셔요.'},
+   {kind:'prose',text:'You may occasionally hear 물이 마시고 싶어요 with the subject particle instead. Both are heard, but 을/를 is the safe standard form and the one to produce yourself.'},
+   {kind:'prose',text:'Destinations keep 에, and places of action keep 에서, unchanged: 학교에 가고 싶어요, 카페에서 일하고 싶어요.'}],
+   check:CB('want-object','저는 밥__ 먹고 싶어요.','I want to eat rice.',['을','이'],0,
+    '밥 is what gets eaten, so it keeps the object particle 을.',
+    'Adding -고 싶어요 does not disturb the rest of the sentence. The object of 먹다 is still an object, so 을 attaches exactly as in 밥을 먹어요.',['밥','먹다'])},
+  {tag:'want-other',title:'You cannot read someone else\'s mind',body:[
+   {kind:'prose',text:'Korean draws a line English does not. -고 싶어요 states a desire you have direct access to — your own, or the listener\'s when you ask them. For a third person, Korean switches to -고 싶어하다, which means "shows signs of wanting".'},
+   {kind:'compare',left:{h:'You / the listener',kr:'가고 싶어요?',en:'Do you want to go?'},right:{h:'Someone else',kr:'친구가 가고 싶어해요.',en:'My friend wants to go.'}},
+   {kind:'prose',text:'The logic is that you can only report another person\'s desire from the outside, by observing it. Korean grammar makes that epistemic difference explicit.'},
+   {kind:'example',kr:'동생이 김치를 먹고 싶어해요.',en:'My younger sibling wants to eat kimchi.'}],
+   check:CB('want-other','친구가 한국에 가고 __.','My friend wants to go to Korea.',['싶어해요','싶어요'],0,
+    'The wanting belongs to a third person, so Korean uses 싶어해요.',
+    '싶어요 claims direct access to a feeling, which you only have for yourself. Reporting a friend\'s desire requires 싶어하다 — literally "acts like they want".',['친구','가다'],'nuance')}],
+ mainBank:[
+  CB('want-form','저는 김치를 먹__ 싶어요.','I want to eat kimchi.',['고','아'],0,'The pattern is stem + 고 싶어요.','-고 is the fixed connector for this pattern; no other ending substitutes for it.',['먹다','김치']),
+  CB('want-form','물을 마시고 __.','I want to drink water.',['싶어요','싶다'],0,'싶다 must be conjugated to 싶어요 to end a sentence.','싶다 is a verb like any other and needs a polite ending to finish a spoken sentence.',['마시다','물']),
+  CB('want-form','어제 집에 가고 __.','I wanted to go home yesterday.',['싶었어요','싶어요'],0,'The wanting was yesterday, so 싶다 takes the past.','Tense attaches to 싶다, not to the first verb. 가고 never changes.',['가다','집']),
+  CB('want-form','뭐 하__ 싶어요?','What do you want to do?',['고','해'],0,'하다 keeps its plain stem 하 before -고.','The irregular 해 appears only when 하다 takes a polite ending directly. Before -고 the stem is simply 하.',['하다']),
+  CB('want-object','영화__ 보고 싶어요.','I want to watch a movie.',['를','가'],0,'영화 is the object of 보다, so it takes 를.','Adding -고 싶어요 leaves the object marking untouched.',['영화','보다']),
+  CB('want-object','저는 한국__ 가고 싶어요.','I want to go to Korea.',['에','에서'],0,'가다 marks its destination with 에, wanting or not.','The desire ending does not change how places are marked. 가다 still takes 에.',['한국','가다']),
+  CB('want-object','카페__ 일하고 싶어요.','I want to work at a cafe.',['에서','에'],0,'Working is an action, so its location keeps 에서.','일하다 is active, so 에서 marks the setting exactly as it would without 싶어요.',['카페','일하다']),
+  CB('want-object','책__ 읽고 싶어요.','I want to read a book.',['을','이'],0,'책 is what gets read, so 을 attaches.','The object of 읽다 stays an object under -고 싶어요.',['책','읽다']),
+  CB('want-other','동생이 밥을 먹고 __.','My younger sibling wants to eat.',['싶어해요','싶어요'],0,'A third person\'s desire takes 싶어하다.','You cannot claim direct knowledge of a sibling\'s feelings, so Korean uses the observed form.',['동생','먹다'],'nuance'),
+  CB('want-other','__ 뭐 먹고 싶어요?','What do you want to eat?',['너는','친구는'],0,'싶어요 works for the listener, so the subject must be the person you are addressing.','Questions with 싶어요 are aimed at the listener, whose feelings they can report directly. A third-person subject would require 싶어해요.',['먹다'],'nuance'),
+  CB('want-other','선생님이 커피를 마시고 __.','The teacher wants to drink coffee.',['싶어해요','싶어요'],0,'The teacher is a third person, so 싶어해요.','Reporting anyone other than yourself or your listener requires the 싶어하다 form.',['선생님','마시다'])],
+ reserveBank:[
+  CB('want-form','저는 한국어를 배우__ 싶어요.','I want to learn Korean.',['고','어'],0,'The connector is always -고.','Stem + 고 싶어요 is fixed for every verb.',['배우다','한국어']),
+  CB('want-form','친구를 만나고 __.','I want to meet a friend.',['싶어요','싶다'],0,'싶다 needs its polite ending.','Dictionary forms never end a spoken sentence.',['만나다','친구']),
+  CB('want-form','어제 쉬고 __.','I wanted to rest yesterday.',['싶었어요','싶어요'],0,'Past desire puts 싶다 into the past.','싶었어요 carries the tense; 쉬고 stays unchanged.',['쉬다']),
+  CB('want-object','사진__ 찍고 싶어요.','I want to take a photo.',['을','이'],0,'사진 is the object of 찍다.','Object marking is unaffected by the desire ending.',['사진','찍다']),
+  CB('want-object','도서관__ 공부하고 싶어요.','I want to study at the library.',['에서','에'],0,'Studying is an action, so the place takes 에서.','에서 marks where an activity happens, with or without 싶어요.',['도서관','공부하다']),
+  CB('want-object','바다__ 가고 싶어요.','I want to go to the sea.',['에','에서'],0,'가다 takes 에 for its destination.','Destinations keep 에 under this pattern.',['가다']),
+  CB('want-other','아이가 우유를 마시고 __.','The child wants to drink milk.',['싶어해요','싶어요'],0,'A third person takes 싶어하다.','You observe the child\'s wanting rather than feel it, so 싶어해요.',['우유','마시다'],'nuance'),
+  CB('want-other','저는 쉬고 __.','I want to rest.',['싶어요','싶어해요'],0,'Your own desire uses the plain 싶어요.','싶어하다 would be wrong for yourself — you have direct access to your own feelings.',['쉬다'],'nuance'),
+  CB('want-other','언니가 영화를 보고 __.','My older sister wants to watch a movie.',['싶어해요','싶어요'],0,'A sibling is a third person, so 싶어해요.','You report another person\'s desire from the outside. Only yourself and your listener take the plain 싶어요.',['언니','보다'],'nuance')],
+ vocab:[
+  CW('싶다','to want','verb','김치를 먹고 싶어요.','I want to eat kimchi.'),
+  CW('쉬다','to rest','verb','오늘은 쉬고 싶어요.','I want to rest today.'),
+  CW('동생','younger sibling','noun','동생이 김치를 먹고 싶어해요.','My younger sibling wants kimchi.')],
+ endings:['고 싶어요','고 싶어해요','고 싶었어요']},
+
+{courseId:'exist',title:'있어요 · having, existing, and counting',
+ tags:[{id:'exist',label:'있다 and 없다'},{id:'counters',label:'Counting things'},{id:'numbers',label:'Two number systems'}],
+ pages:[
+  {tag:'exist',title:'One verb for "there is" and "I have"',body:[
+   {kind:'prose',text:'있다 covers both existence and possession. Korean does not distinguish "there is a pencil" from "I have a pencil" at the verb — the difference comes from what else is in the sentence.'},
+   {kind:'example',kr:'저기 연필이 있어요.',en:'There is a pencil over there.'},
+   {kind:'example',kr:'저는 시간이 있어요.',en:'I have time.',note:'Literally "as for me, time exists".'},
+   {kind:'prose',text:'Its opposite, 없다, is a separate word rather than a negation. You never say 안 있어요 — the language has a dedicated verb for absence.'},
+   {kind:'compare',left:{h:'There is / I have',kr:'있어요',en:'exists'},right:{h:'There is not / I lack',kr:'없어요',en:'does not exist'}}],
+   check:CB('exist','저는 시간이 __.','I do not have time.',['없어요','안 있어요'],0,
+    'Korean uses the dedicated verb 없다 rather than negating 있다.',
+    '안 있어요 is not used. 없다 is its own word meaning "to not exist", and it is what every negative existence or possession sentence uses.',['시간','없다'])},
+  {tag:'exist',title:'The thing that exists takes 이/가',body:[
+   {kind:'prose',text:'A possession sentence in Korean has an unusual shape for English speakers: the owner is the topic, and the thing owned is the grammatical subject.'},
+   {kind:'example',kr:'저는 동생이 있어요.',en:'I have a younger sibling.',note:'Literally "as for me, a sibling exists".'},
+   {kind:'prose',text:'This is why the possessed thing carries 이/가 and never 을/를. Nothing is being acted on — something simply exists — so there is no object in the sentence at all.'},
+   {kind:'compare',left:{h:'Correct',kr:'돈이 없어요.',en:'I have no money.'},right:{h:'Wrong',kr:'돈을 없어요.',en:'(no object is possible)'}}],
+   check:CB('exist','저는 차__ 있어요.','I have a car.',['가','를'],0,
+    'The thing that exists takes 이/가, never the object particle.',
+    '있다 is not an action performed on something, so it takes no object. 차가 있어요 literally says "a car exists", with the owner set as the topic.',['차','있다'])},
+  {tag:'numbers',title:'Korea counts two ways',body:[
+   {kind:'prose',text:'Korean has two complete number systems, and which one you use depends on what you are counting. This feels heavy at first, but each system owns a clear territory.'},
+   {kind:'table',head:['','Native Korean','Sino-Korean'],rows:[['1','하나','일'],['2','둘','이'],['3','셋','삼'],['4','넷','사'],['5','다섯','오']]},
+   {kind:'prose',text:'Native numbers count things and people, and give the hour. Sino numbers handle money, minutes, dates, phone numbers, and anything above about a hundred.'},
+   {kind:'example',kr:'세 시 삼십 분',en:'3:30',note:'Native 세 for the hour, Sino 삼십 for the minutes — in the same breath.'}],
+   check:CB('numbers','사과 __ 개 주세요.','Two apples, please.',['두','이'],0,
+    'Counting objects uses native numbers, so 둘 becomes 두 before a counter.',
+    'Sino 이 is used for minutes, money and dates, not for counting fruit. Native 둘 shortens to 두 when a counter follows.',['사과'])},
+  {tag:'counters',title:'You cannot count a noun directly',body:[
+   {kind:'prose',text:'Korean does not say "two apples". It says "apple two units", using a counter word that matches the kind of thing. English does this occasionally — two slices of bread, three head of cattle — but Korean requires it every time.'},
+   {kind:'table',head:['Counter','Used for','Example'],rows:[['개','objects','사과 두 개'],['명','people','학생 세 명'],['잔','cups / glasses','커피 한 잔'],['병','bottles','물 두 병']]},
+   {kind:'prose',text:'The order is fixed: noun, then number, then counter. And four native numbers shorten before a counter — 하나 becomes 한, 둘 becomes 두, 셋 becomes 세, 넷 becomes 네.'},
+   {kind:'example',kr:'커피 한 잔 주세요.',en:'One coffee, please.'}],
+   check:CB('counters','학생 세 __ 있어요.','There are three students.',['명','개'],0,
+    'People are counted with 명, not 개.',
+    '개 counts inanimate objects. Using it for people would be as jarring as calling a person "an item" in English. 명 is the neutral counter for people.',['학생'])}],
+ mainBank:[
+  CB('exist','저는 시간이 __.','I do not have time.',['없어요','안 있어요'],0,'Absence uses the dedicated verb 없다.','안 있어요 does not exist in Korean; 없어요 is the only form.',['시간','없다']),
+  CB('exist','가방 안에 책이 __.','There is a book in the bag.',['있어요','있다'],0,'The sentence needs the conjugated 있어요.','Dictionary forms never finish a spoken sentence.',['가방','책']),
+  CB('exist','저는 동생__ 있어요.','I have a younger sibling.',['이','을'],0,'The thing that exists takes 이/가.','있다 takes no object, so 을/를 is impossible here.',['동생','있다']),
+  CB('exist','돈__ 없어요.','I have no money.',['이','을'],0,'없다 also takes 이/가, not an object particle.','Nothing is being acted on — money simply fails to exist.',['돈','없다']),
+  CB('numbers','커피 __ 잔 주세요.','One coffee, please.',['한','일'],0,'Counting cups uses native numbers, and 하나 shortens to 한.','Sino 일 is for dates and money. Native 하나 becomes 한 before a counter.',['커피']),
+  CB('numbers','지금 __ 시예요.','It is three o\'clock now.',['세','삼'],0,'Hours use native numbers, so 셋 shortens to 세.','Minutes take Sino numbers, but the hour is always native: 세 시.',[]),
+  CB('numbers','오천 __ 이에요.','It is five thousand won.',['원','개'],0,'Money is counted in 원 with Sino numbers.','원 is the currency unit; 개 counts objects.',['돈']),
+  CB('counters','학생 세 __ 있어요.','There are three students.',['명','개'],0,'People take the counter 명.','개 is only for inanimate objects.',['학생']),
+  CB('counters','사과 두 __ 주세요.','Two apples, please.',['개','명'],0,'Objects take the counter 개.','명 is reserved for people.',['사과']),
+  CB('counters','물 두 __ 주세요.','Two bottles of water, please.',['병','잔'],0,'Bottles are counted with 병.','잔 counts cups and glasses; 병 counts bottles.',['물']),
+  CB('counters','한국어로 "two people" 는 __ 이에요.','"Two people" in Korean is ___.',['두 명','두 개'],0,'People require 명.','Counting people with 개 is not merely unusual — it is incorrect and sounds dismissive.',[],'nuance')],
+ reserveBank:[
+  CB('exist','교실에 학생이 __.','There are no students in the classroom.',['없어요','안 있어요'],0,'Absence uses 없다.','없다 is a separate verb, not a negated 있다.',['교실','없다']),
+  CB('exist','저는 차__ 있어요.','I have a car.',['가','를'],0,'The possessed thing takes 이/가.','있다 never takes an object particle.',['차','있다']),
+  CB('exist','책상 위에 커피가 __.','There is coffee on the desk.',['있어요','있다'],0,'A sentence needs the conjugated form.','있어요 is the polite present of 있다.',['책상','커피']),
+  CB('numbers','저는 스물 __ 살이에요.','I am twenty-one years old.',['한','일'],0,'Age uses native numbers, so 하나 becomes 한.','살 (years of age) takes native numbers throughout.',[]),
+  CB('numbers','전화번호가 __ 이에요.','The phone number is 010.',['공일공','영하나영'],0,'Phone numbers use Sino digits.','Sino numbers handle phone numbers, dates and money; native numbers never appear there.',[]),
+  CB('numbers','오늘은 __ 월 이일이에요.','Today is March 2nd.',['삼','셋'],0,'Months use Sino numbers, so March is 삼월.','Dates are Sino territory throughout. Native 셋 counts objects and gives the hour, never the month.',[]),
+  CB('counters','친구 네 __ 만났어요.','I met four friends.',['명','개'],0,'People take 명, and 넷 shortens to 네.','Both rules apply: the people counter, and the shortened native number.',['친구','만나다']),
+  CB('counters','맥주 세 __ 주세요.','Three bottles of beer, please.',['병','명'],0,'Bottles take 병.','명 counts people only.',[]),
+  CB('counters','차 한 __ 어때요?','How about a cup of tea?',['잔','개'],0,'Cups and glasses take 잔.','잔 is the counter for served drinks.',['차'],'nuance')],
+ vocab:[
+  CW('돈','money','noun','돈이 없어요.','I have no money.'),
+  CW('차','car','noun','저는 차가 있어요.','I have a car.'),
+  CW('사과','apple','noun','사과 두 개 주세요.','Two apples, please.'),
+  CW('연필','pencil','noun','저기 연필이 있어요.','There is a pencil over there.'),
+  CW('주다','to give','verb','커피 한 잔 주세요.','One coffee, please.')],
+ endings:['개','명','잔','병','살','원']},
+];
+
+/* ================= VOCABULARY =================
+   One list of every content word you actually know — lesson vocabulary plus anything
+   you add yourself — cross-referenced against the sentences in your clusters, so the
+   two halves of the app are visibly studying the same words. */
+const VOCAB_POS=['noun','verb','adj'];
+function posOf(w){
+  if(w.pos)return w.pos;
+  const d=String(w.display||'');
+  return /다$/.test(d)?'verb':'noun';       // dictionary forms end in 다; everything else reads as a noun
+}
+function vocabIncluded(w){return VOCAB_POS.includes(posOf(w))}
+/* the searchable core of a word: 하다 compounds live under their noun, plain verbs under the stem */
+function vocabStem(w){
+  const d=String(w.display||'').trim();
+  if(/하다$/.test(d))return d.length>2?d.slice(0,-2):'해';
+  if(/다$/.test(d)&&d.length>1)return d.slice(0,-1);
+  return d;
+}
+function knownVocab(){
+  const out=[],seen=new Set();
+  (db.units2||[]).forEach(u=>(u.vocab||[]).forEach(w=>{
+    const k=String(w.display||'').trim();if(!k||seen.has(k))return;seen.add(k);
+    out.push({w,unit:u,mine:false});
+  }));
+  (db.myVocab||[]).forEach(w=>{
+    const k=String(w.display||'').trim();if(!k||seen.has(k))return;seen.add(k);
+    out.push({w,unit:null,mine:true});
+  });
+  return out;
+}
+/* a bare verb stem like 가 is also the subject particle, so a plain substring test
+   matches almost every sentence. Verbs only count when a real ending follows. */
+const KO_ENDING=/[요아어었았해했고는서세시지기게니면으까네죠자만을러려던든습대네]/;
+function vocabInText(w,text){
+  const stem=vocabStem(w),t=String(text||'');
+  if(!stem)return false;
+  if(posOf(w)==='noun')return t.includes(stem);
+  let i=t.indexOf(stem);
+  while(i>=0){
+    const nxt=t[i+stem.length];
+    if(nxt&&KO_ENDING.test(nxt))return true;
+    i=t.indexOf(stem,i+1);
+  }
+  return false;
+}
+function clustersUsing(w){
+  if(!vocabStem(w))return [];
+  return (db.clusters||[]).filter(c=>(c.sentences||[]).some(s=>vocabInText(w,s.ko)));
+}
+function vocabMastery(w){
+  const s=vocabStateOf(w.id||('my-'+w.display));
+  return {stage:s.stageCleared||0,miss:s.missCount||0};
+}
+let _vp={filter:'all',q:'',open:null,addOpen:false,scan:null};
+
+function renderVocab(){
+  const area=document.getElementById('vocabArea');if(!area)return;
+  const all=knownVocab().filter(x=>vocabIncluded(x.w));
+  const q=_vp.q.trim().toLowerCase();
+  const list=all.filter(x=>{
+    if(_vp.filter!=='all'&&posOf(x.w)!==_vp.filter)return false;
+    if(!q)return true;
+    return String(x.w.display).includes(q)||String(x.w.meaning||'').toLowerCase().includes(q);
+  }).sort((a,b)=>String(a.w.display).localeCompare(String(b.w.display),'ko'));
+  const counts={all:all.length,noun:0,verb:0,adj:0};
+  all.forEach(x=>counts[posOf(x.w)]++);
+  if(!all.length){
+    area.innerHTML=`<div class="empty">${SPOT_BUBBLES}<div class="t">No words yet</div>
+      <div class="row" style="justify-content:center;gap:8px;margin-top:6px">
+        <button class="btn accent" onclick="vpAddToggle()">${svgi(ICO.plus,'bic')}Add a word</button>
+        <button class="btn ghost" onclick="go('lesson')">To lessons</button></div></div>`;
+    if(_vp.addOpen)vpMountAdd(area);
+    return;
+  }
+  const chip=(k,lbl)=>`<button class="${_vp.filter===k?'on':''}" onclick="vpFilter('${k}')">${lbl}${counts[k]?' · '+counts[k]:''}</button>`;
+  area.innerHTML=`
+    <nav class="cl-tabs" style="margin:0 0 10px">
+      ${chip('all','All')}${chip('noun','Nouns')}${chip('verb','Verbs')}${chip('adj','Adjectives')}
+    </nav>
+    <div class="row" style="gap:8px;margin-bottom:10px">
+      <input type="text" id="vpSearch" placeholder="Search" value="${esc(_vp.q)}" style="flex:1;min-width:0"
+        oninput="_vp.q=this.value;vpRelist()">
+      <button class="btn ghost sm" onclick="vpAddToggle()">${svgi(ICO.plus,'sic')}Add</button>
+      ${db.settings.key?`<button class="btn ghost sm" id="vpScanBtn" onclick="vpScanClusters()">${svgi(ICO.spark,'sic')}Scan</button>`:''}
+    </div>
+    <div id="vpAddSlot"></div>
+    <div id="vpScanSlot"></div>
+    <div class="vp-list" id="vpList">${list.map(vpRowHTML).join('')||'<p class="cl-hint">No matches</p>'}</div>`;
+  if(_vp.addOpen)vpMountAdd(document.getElementById('vpAddSlot'));
+  if(_vp.scan)vpMountScan(document.getElementById('vpScanSlot'));
+}
+function vpRowHTML(x){
+  const w=x.w,open=_vp.open===w.display;
+  const used=clustersUsing(w),m=vocabMastery(w);
+  const dots=[0,1,2,3].map(i=>`<i class="${i<m.stage?'on':''}"></i>`).join('');
+  return `<div class="vp-row${open?' open':''}">
+    <button class="vp-head" onclick="vpOpen('${esc(w.display).replace(/'/g,"\\'")}')">
+      <div class="vp-main">
+        <span class="vp-ko" lang="ko">${esc(w.display)}</span>
+        <span class="vp-en">${esc(w.meaning||'')}</span>
+      </div>
+      <span class="vp-meta">
+        ${used.length?`<span class="vp-use">${used.length}</span>`:''}
+        <span class="vp-dots">${dots}</span>
+      </span>
+    </button>
+    ${open?`<div class="vp-body">
+      <div class="row" style="gap:8px;margin-bottom:8px">
+        ${spkBtn(w.display)}
+        <span class="tag">${posOf(w)}</span>
+        ${x.mine?`<span class="tag">yours</span>`:x.unit?`<span class="tag accent">${esc(x.unit.title)}</span>`:''}
+      </div>
+      ${w.contextKr?`<div class="lp-ex"><div class="kr" lang="ko">${esc(w.contextKr)} ${spkBtn(w.contextKr)}</div><div class="en">${esc(w.contextEn||'')}</div></div>`:''}
+      ${used.length?`<p class="cl-k" style="margin:10px 0 4px">In your clusters</p>
+        <div class="vp-cl">${used.map(c=>`<button class="sh-btn" onclick="vpGoCluster('${c.id}')">${esc(c.title)}</button>`).join('')}</div>`:''}
+      ${x.mine?`<div class="row" style="margin-top:12px"><button class="btn danger sm" onclick="vpRemove('${esc(w.display).replace(/'/g,"\\'")}')">${svgi(ICO.trash,'sic')}Remove</button></div>`:''}
+    </div>`:''}
+  </div>`;
+}
+function vpRelist(){
+  const l=document.getElementById('vpList');if(!l)return;
+  const all=knownVocab().filter(x=>vocabIncluded(x.w));
+  const q=_vp.q.trim().toLowerCase();
+  const list=all.filter(x=>{
+    if(_vp.filter!=='all'&&posOf(x.w)!==_vp.filter)return false;
+    if(!q)return true;
+    return String(x.w.display).includes(q)||String(x.w.meaning||'').toLowerCase().includes(q);
+  }).sort((a,b)=>String(a.w.display).localeCompare(String(b.w.display),'ko'));
+  l.innerHTML=list.map(vpRowHTML).join('')||'<p class="cl-hint">No matches</p>';
+}
+function vpFilter(k){_vp.filter=k;_vp.open=null;renderVocab()}
+function vpOpen(d){_vp.open=_vp.open===d?null:d;vpRelist()}
+function vpGoCluster(id){go('clusters');openCluster(id)}
+function vpAddToggle(){_vp.addOpen=!_vp.addOpen;renderVocab();
+  const e=document.getElementById('vpWord');if(e)e.focus()}
+function vpMountAdd(slot){
+  if(!slot)return;
+  slot.innerHTML=`<div class="vp-add">
+    <input type="text" id="vpWord" placeholder="한국어 or English" onkeydown="if(event.key==='Enter')vpAdd()">
+    <button class="btn accent sm" id="vpAddBtn" onclick="vpAdd()">Add</button>
+    <button class="btn ghost sm" onclick="vpAddToggle()" aria-label="Close">✕</button>
+  </div><div class="cl-hint" id="vpAddMsg"></div>`;
+}
+async function vpAdd(){
+  const inp=document.getElementById('vpWord'),btn=document.getElementById('vpAddBtn');
+  const raw=(inp&&inp.value||'').trim();if(!raw)return;
+  let pair=parsePairLine(raw)||{ko:'',en:raw};
+  if(!pair.ko||!pair.en){
+    if(!db.settings.key){setText('vpAddMsg','Add an API key in Settings to translate, or type both sides: 먹다 — to eat');return}
+    if(btn){btn.disabled=true;btn.textContent='…'}
+    try{const done=await aiCompletePairs([pair]);if(done&&done[0])pair=done[0]}
+    catch(e){setText('vpAddMsg','Translation failed: '+e.message);if(btn){btn.disabled=false;btn.textContent='Add'}return}
+  }
+  if(!pair.ko||!pair.en){setText('vpAddMsg','Could not read that one');if(btn){btn.disabled=false;btn.textContent='Add'}return}
+  vpCommit(pair.ko,pair.en);
+  _vp.addOpen=false;renderVocab();toast('Added '+pair.ko);
+}
+function vpCommit(ko,en,pos){
+  db.myVocab=db.myVocab||[];
+  if(db.myVocab.some(w=>w.display===ko)||knownVocab().some(x=>x.w.display===ko))return false;
+  db.myVocab.push({id:'my-'+ko,display:ko,meaning:en,pos:pos||(/다$/.test(ko)?'verb':'noun'),
+    accepts:[en],phonetic:null,phoneticNote:null,contextKr:'',contextEn:''});
+  save();return true;
+}
+function vpRemove(d){
+  db.myVocab=(db.myVocab||[]).filter(w=>w.display!==d);
+  save();_vp.open=null;renderVocab();toast('Removed');
+}
+/* scan cluster sentences for content words the vocabulary does not have yet */
+async function vpScanClusters(){
+  const btn=document.getElementById('vpScanBtn');
+  const known=knownVocab().map(x=>x.w.display);
+  const sents=[];
+  (db.clusters||[]).forEach(c=>(c.sentences||[]).forEach(s=>{if(s.ko)sents.push(s.ko)}));
+  if(!sents.length){toast('No cluster sentences to scan');return}
+  if(btn){btn.disabled=true;btn.textContent='Scanning…'}
+  try{
+    const txt=await callClaude([{role:'user',content:
+      'SENTENCES:\n'+sents.slice(0,120).join('\n')+'\n\nALREADY KNOWN:\n'+known.join(', ')}],
+      'List the content words used in these Korean sentences that are NOT in the known list. Only nouns, verbs and adjectives — no particles, endings, adverbs, numbers or counters. Give verbs and adjectives in their dictionary form ending in 다. Reply ONLY with a JSON array: [{"ko":"…","en":"…","pos":"noun|verb|adj"}]',1500);
+    const m=txt.match(/\[[\s\S]*\]/);
+    const arr=JSON.parse(m?m[0]:txt);
+    _vp.scan=arr.filter(x=>x&&x.ko&&!known.includes(x.ko)).slice(0,40);
+    if(!_vp.scan.length)toast('Nothing new found');
+  }catch(e){toast('Scan failed: '+e.message)}
+  if(btn){btn.disabled=false;btn.textContent='Scan'}
+  renderVocab();
+}
+function vpMountScan(slot){
+  if(!slot||!_vp.scan)return;
+  slot.innerHTML=`<div class="vp-scan">
+    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px">
+      <p class="cl-k" style="margin:0">Found in your clusters · ${_vp.scan.length}</p>
+      <div class="row" style="gap:6px">
+        <button class="btn ghost sm" onclick="vpScanAll()">Add all</button>
+        <button class="btn ghost sm" onclick="_vp.scan=null;renderVocab()" aria-label="Close">✕</button>
+      </div>
+    </div>
+    <div class="vp-cl">${_vp.scan.map((x,i)=>`<button class="sh-btn" onclick="vpScanAdd(${i})">${esc(x.ko)} · ${esc(x.en||'')}</button>`).join('')}</div>
+  </div>`;
+}
+function vpScanAdd(i){
+  const x=_vp.scan[i];if(!x)return;
+  vpCommit(x.ko,x.en,VOCAB_POS.includes(x.pos)?x.pos:null);
+  _vp.scan.splice(i,1);
+  if(!_vp.scan.length)_vp.scan=null;
+  renderVocab();
+}
+function vpScanAll(){
+  let n=0;(_vp.scan||[]).forEach(x=>{if(vpCommit(x.ko,x.en,VOCAB_POS.includes(x.pos)?x.pos:null))n++});
+  _vp.scan=null;renderVocab();toast('Added '+n+' word'+(n===1?'':'s'));
+}
+
+/* course units are stored like any other unit, but keyed so re-seeding is idempotent */
+function hydrateCourseUnit(src){
+  const uid='course-'+src.courseId;
+  const u={id:uid,courseId:src.courseId,source:'course',title:src.title,
+    tags:src.tags.map(t=>({id:t.id,label:t.label,pageIds:[]})),
+    pages:[],corrections:[],mainBank:[],reserveBank:[],vocab:[],endings:(src.endings||[]).slice()};
+  src.pages.forEach((p,i)=>{
+    const pg=Object.assign({},p,{id:uid+'-pg'+i});
+    pg.check=Object.assign({},p.check,{id:uid+'-pgq'+i});
+    u.pages.push(pg);
+    const t=u.tags.find(x=>x.id===pg.tag);if(t)t.pageIds.push(pg.id);
+  });
+  src.mainBank.forEach((it,i)=>u.mainBank.push(Object.assign({},it,{id:uid+'-m'+i})));
+  src.reserveBank.forEach((it,i)=>u.reserveBank.push(Object.assign({},it,{id:uid+'-r'+i})));
+  src.vocab.forEach((w,i)=>u.vocab.push(Object.assign({},w,{id:uid+'-v'+i,
+    accepts:(w.accepts&&w.accepts.length?w.accepts:[w.meaning]).slice(),
+    phonetic:null,phoneticNote:null})));
+  return u;
+}
+function seedCourse2(){
+  db.units2=db.units2||[];
+  let added=0;
+  COURSE2.forEach(src=>{
+    if(db.units2.some(u=>u.courseId===src.courseId))return;
+    db.units2.push(hydrateCourseUnit(src));added++;
+  });
+  if(added)save();
+}
+
 /* models routinely wrap a requested array in an object — accept either */
 function asArray(r,...keys){
   if(Array.isArray(r))return r;
@@ -6088,6 +6947,7 @@ function finishLesson2(){
 function init(){
   migrate();
   migrateV2();
+  seedCourse2();
   const snapRow=document.getElementById('snapRow');
   if(snapRow)snapRow.style.display=hasSnapshot()?'':'none';
   document.getElementById('apiKey').value=db.settings.key||'';
