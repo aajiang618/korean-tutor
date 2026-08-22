@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#EFF1EC">
+<meta name="theme-color" content="#EFF1EC" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#161914" media="(prefers-color-scheme: dark)">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23EFF1EC'/%3E%3Cpath d='M32 8C34.8 23.5 40.5 29.2 56 32 40.5 34.8 34.8 40.5 32 56 29.2 40.5 23.5 34.8 8 32 23.5 29.2 29.2 23.5 32 8Z' fill='%233F6B3A'/%3E%3Ccircle cx='27.5' cy='30.5' r='2.1' fill='%23EFF1EC'/%3E%3Ccircle cx='36.5' cy='30.5' r='2.1' fill='%23EFF1EC'/%3E%3Cpath d='M28 36.5q4 3.2 8 0' stroke='%23EFF1EC' stroke-width='2.1' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -21,7 +22,7 @@
     --accent:#3F6B3A; --accent-soft:rgba(63,107,58,.12);
     --topic:#A83A2C; --subj:#27567F;
     --rule:rgba(30,36,32,.06); --hairline:#D3D9CE; --margin:transparent;
-    --good:#3F6B3A; --bad:#A83A2C; --warn:#8A6A2E;
+    --good:#3F6B3A; --bad:#A83A2C; --bad-fill:#A83A2C; --warn:#7C5D26;
     --sh-out:0 1px 3px rgba(30,36,32,.10), 0 0 0 1px #D3D9CE;
     --sh-out-sm:0 0 0 1px #D3D9CE;
     --sh-in:inset 0 0 0 1px #D3D9CE;
@@ -30,6 +31,25 @@
     --ease:cubic-bezier(0.23,1,0.32,1);
     --easeOut:cubic-bezier(0.16,1,0.3,1);
     --ease-drawer:cubic-bezier(0.32,0.72,0,1);
+  }
+  /* Dark appearance: the same warm-sage identity with the values inverted. Every
+     surface in the app is tokenised, so redefining the tokens is the whole change. */
+  @media(prefers-color-scheme:dark){
+    :root{
+      --page:#161914; --sheet:#1E221B; --panel:#242822;
+      --ink:#E8EBE4; --muted:#A9B1A5;
+      --accent:#8FBA88; --accent-soft:rgba(143,186,136,.18);
+      --topic:#D9836F; --subj:#7FA8CE;
+      --rule:rgba(255,255,255,.07); --hairline:#333A31;
+      /* --bad is nearly always red TEXT, so it lightens for dark; fills keep their own darker shade */
+      --good:#8FBA88; --bad:#E39280; --bad-fill:#8E3A2E; --warn:#C6A464;
+      --sh-out:0 1px 3px rgba(0,0,0,.45), 0 0 0 1px #333A31;
+      --sh-out-sm:0 0 0 1px #333A31;
+      --sh-in:inset 0 0 0 1px #333A31;
+      --sh-in-sm:inset 0 0 0 1px #333A31;
+    }
+    .swipe.drag .snt{box-shadow:0 12px 28px rgba(0,0,0,.55)}
+    .sh-btn.on{color:#161914}
   }
   *{box-sizing:border-box}
   html,body{margin:0;overscroll-behavior:none} /* no rubber-band past the app when installed */
@@ -53,14 +73,14 @@
 
   .side{order:2;padding:0;flex-shrink:0}
   /* ---------- persistent mini player ---------- */
-  .miniplayer{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--sheet);
+  .miniplayer{display:flex;align-items:center;gap:4px;padding:5px 8px 5px 12px;background:var(--sheet);
     border-top:1px solid var(--hairline);animation:mpIn .26s var(--easeOut)}
   .miniplayer[hidden]{display:none}
   @keyframes mpIn{from{opacity:0;transform:translateY(100%)}to{opacity:1;transform:none}}
-  .mp-open{flex:1;min-width:0;display:flex;align-items:center;gap:10px;border:0;background:none;
+  .mp-open{flex:1;min-width:0;min-height:44px;display:flex;align-items:center;gap:10px;border:0;background:none;
     padding:4px 2px;cursor:pointer;color:var(--ink);text-align:left;font-family:inherit}
   .mp-title{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .mp-btn{width:36px;height:36px;flex-shrink:0;border:0;background:none;color:var(--ink);
+  .mp-btn{width:44px;height:44px;flex-shrink:0;border:0;background:none;color:var(--ink);
     cursor:pointer;display:grid;place-items:center;border-radius:50%}
   .mp-btn svg{width:19px;height:19px}
   .mp-btn:active{background:var(--accent-soft)}
@@ -81,6 +101,9 @@
   @media(min-width:520px){
     body{display:grid;place-items:center;height:100dvh;overflow:hidden;background:#DDE1DA;
       background-image:radial-gradient(circle at 50% 20%,#E7EAE3,#D3D8D0)}
+    @media(prefers-color-scheme:dark){
+      body{background:#0C0E0A;background-image:radial-gradient(circle at 50% 20%,#171A15,#0A0C08)}
+    }
     /* true 430x932 canvas, scaled as one unit — text keeps real-phone proportions */
     .shell{width:430px;max-width:none;height:932px;flex-shrink:0;
       position:fixed;left:50%;top:50%;margin:0;
@@ -200,23 +223,24 @@
       repeating-linear-gradient(to bottom,transparent 0 27px,var(--rule) 27px 28px);
     background-attachment:local,local}
 
-  .tag{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  .tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
     padding:4px 11px;border-radius:var(--r);background:var(--page);color:var(--muted);box-shadow:var(--sh-in-sm)}
   .tag.accent{background:var(--accent-soft);color:var(--accent);box-shadow:none}
   .tag.good{background:rgba(62,142,92,.14);color:var(--good);box-shadow:none}
   .strat{display:inline-block;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
     color:var(--accent);opacity:.85;margin-left:8px}
 
-  .spk{border:0;cursor:pointer;width:34px;height:34px;background:var(--sheet);
+  .spk{border:0;cursor:pointer;width:34px;height:34px;background:var(--sheet);position:relative;
     color:var(--accent);box-shadow:var(--sh-out-sm);display:inline-grid;place-items:center;vertical-align:middle;
     transition:transform .16s var(--ease),box-shadow .16s var(--ease)}
+  .spk::after{content:'';position:absolute;inset:-5px} /* 44pt thumb target around a 34pt glyph */
   .spk:active{transform:scale(0.92);box-shadow:var(--sh-in-sm)}
   .spk svg{width:16px;height:16px}
   .mic{border:0;cursor:pointer;width:46px;height:46px;background:var(--sheet);
     color:var(--ink);box-shadow:var(--sh-out-sm);display:grid;place-items:center;flex-shrink:0;
     transition:transform .16s var(--ease),box-shadow .16s var(--ease),background .2s}
   .mic:active{transform:scale(0.94)}
-  .mic.listening{background:var(--bad);color:#fff;box-shadow:0 0 0 0 rgba(194,84,84,.5);animation:pulse 1.2s infinite}
+  .mic.listening{background:var(--bad-fill);color:#fff;box-shadow:0 0 0 0 rgba(194,84,84,.5);animation:pulse 1.2s infinite}
   @keyframes pulse{70%{box-shadow:0 0 0 14px rgba(194,84,84,0)}100%{box-shadow:0 0 0 0 rgba(194,84,84,0)}}
   .mic svg{width:20px;height:20px}
 
@@ -547,6 +571,12 @@
   .snt.playing{background:var(--sheet);box-shadow:0 0 0 8px var(--sheet);border-radius:6px}
   .snt.editing{display:flex;gap:8px;align-items:center;cursor:default;padding:10px 0}
   .snt.editing input{padding:9px 11px;font-size:13.5px;min-width:0}
+  .ed-fields{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+  .mv{display:flex;flex-direction:column;gap:2px;flex-shrink:0}
+  .mv button{width:32px;height:30px;border:1px solid var(--hairline);background:none;color:var(--muted);
+    cursor:pointer;font-size:9px;line-height:1;border-radius:6px;padding:0}
+  .mv button:disabled{opacity:.35;cursor:default}
+  .mv button:active:not(:disabled){background:var(--accent-soft);color:var(--accent)}
   .snt.editing input.iko{font-family:"Gowun Batang",serif;font-size:15px}
   .snt.editing .del{border:0;background:none;color:var(--muted);cursor:pointer;padding:6px;
     border-radius:8px;flex-shrink:0;display:grid;place-items:center}
@@ -568,7 +598,7 @@
   .swipe .snt{background:var(--page);position:relative;z-index:1}
   .swipe.swiping .snt{will-change:transform} /* only while moving: a resting layer lags iOS scroll */
   /* the red only exists during a swipe, so momentum scrolling can never flash it */
-  .swipe-del{position:absolute;inset:0;display:flex;justify-content:flex-end;background:var(--bad);visibility:hidden}
+  .swipe-del{position:absolute;inset:0;display:flex;justify-content:flex-end;background:var(--bad-fill);visibility:hidden}
   .swipe.swiping .swipe-del{visibility:visible}
   .del-act{border:0;background:none;color:#fff;font-family:Karla;font-weight:700;font-size:11.5px;
     letter-spacing:.09em;text-transform:uppercase;width:104px;cursor:pointer;display:grid;place-items:center;
@@ -2512,7 +2542,7 @@ function renderClusterRun(){
       ${_cl.edit?'':`<button class="ico-btn ${_cl.selMode?'on':''}" onclick="clToggleSelMode()" aria-pressed="${!!_cl.selMode}" aria-label="Select sentences to repeat" title="Select sentences to repeat">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M8.4 12.2l2.4 2.4 4.8-5"/></svg></button>`}
       ${db.settings.key?`<button class="ico-btn" onclick="aiGrowCluster('${c.id}')" aria-label="Add AI sentences" title="Add AI sentences from your lessons">${svgi(ICO.grow)}</button>`:''}
-      ${c.source==='custom'?`<button class="ico-btn ${_cl.edit?'on':''}" onclick="clToggleEdit()" aria-pressed="${!!_cl.edit}" aria-label="Edit sentences" title="Edit sentences">${svgi(ICO.edit)}</button>`:''}
+      <button class="ico-btn ${_cl.edit?'on':''}" onclick="clToggleEdit()" aria-pressed="${!!_cl.edit}" aria-label="Edit sentences" title="Edit sentences">${svgi(ICO.edit)}</button>
       ${_cl.tab==='prep'&&!_cl.edit?`<button class="sh-btn ${db.settings.prepKoOnly?'on':''}" onclick="togglePrepKo()" aria-pressed="${!!db.settings.prepKoOnly}" title="Play only the Korean during preparation — no English translations">KO only</button>`:''}
       <label class="cl-size"><input type="range" min="10" max="40" step="5" value="${size}"
         oninput="document.getElementById('szLbl').textContent=this.value" onchange="clSetSize(this.value)"
@@ -2530,8 +2560,14 @@ function renderClusterRun(){
     ${_cl.edit?`
     <div class="snt-list">
       ${c.sentences.map((s,i)=>`<div class="snt editing">
-        <input type="text" class="iko" lang="ko" value="${esc(s.ko)}" placeholder="한국어" onchange="clEditSent(${i},'ko',this.value)">
-        <input type="text" value="${esc(s.en)}" placeholder="English" onchange="clEditSent(${i},'en',this.value)">
+        <div class="mv">
+          <button onclick="clMove(${i},-1)" ${i===0?'disabled':''} aria-label="Move up" title="Move up">▲</button>
+          <button onclick="clMove(${i},1)" ${i===c.sentences.length-1?'disabled':''} aria-label="Move down" title="Move down">▼</button>
+        </div>
+        <div class="ed-fields">
+          <input type="text" class="iko" lang="ko" value="${esc(s.ko)}" placeholder="한국어" onchange="clEditSent(${i},'ko',this.value)">
+          <input type="text" value="${esc(s.en)}" placeholder="English" onchange="clEditSent(${i},'en',this.value)">
+        </div>
         <button class="del" onclick="clDelSent(${i})" aria-label="Delete sentence" title="Delete">${svgi(ICO.trash)}</button>
       </div>`).join('')}
       <div class="snt editing" style="border-top:1px solid var(--hairline)">
@@ -2852,6 +2888,13 @@ function clEditSent(i,field,val){
   _cl.c.sentences[i][field]=v;save();
 }
 function clDelSent(i){_cl.c.sentences.splice(i,1);save();renderClusterRun()}
+/* tap-based equivalent of hold-and-drag, so reordering never depends on a gesture */
+function clMove(i,d){
+  const a=_cl.c.sentences,j=i+d;
+  if(j<0||j>=a.length)return;
+  [a[i],a[j]]=[a[j],a[i]];
+  save();renderClusterRun();
+}
 async function clAddSent(){
   const inp=document.getElementById('ccAddLine');if(!inp)return;
   const p=parsePairLine(inp.value);if(!p){toast('Type a sentence first');return}
