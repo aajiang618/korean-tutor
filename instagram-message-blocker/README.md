@@ -9,8 +9,9 @@ It is an [accessibility service](https://developer.android.com/guide/topics/ui/a
 it reads the view ids of the screen Instagram is showing, compares them with a small rule list, and
 reacts. Nothing leaves the phone, there is no network permission at all.
 
-> **iPhone:** iOS does not let a third-party app hide parts of another app, so this cannot be
-> ported. See [iPhone options](#iphone-options) at the bottom for what does work there.
+> **iPhone:** iOS does not let a third-party app hide parts of another app, so the Android app
+> cannot be ported. The [iPhone](#iphone) section has the Safari version instead: same idea, works
+> on instagram.com.
 
 ## Install (prebuilt APK)
 
@@ -101,15 +102,44 @@ This is how `dist/dmonly-debug.apk` was produced.
   Wellbeing app timer on DM Only itself, or hand the accessibility toggle to a device-admin style
   app locker.
 
-## iPhone options
+## iPhone
 
-iOS has no equivalent of accessibility services for third-party apps, so an app cannot hide the feed
-inside Instagram. What does work:
+iOS has no equivalent of accessibility services for third-party apps, so nothing can hide the feed
+inside the Instagram *app*. Instagram's website has full messaging though, and Safari on iPhone can
+run user scripts. `ios/dm-only.user.js` is that script: on instagram.com it hides the Home, Explore
+and Reels links, sends the feed, Explore and the Reels tab to the inbox, and sends a post, story or
+reel you open back to where you came from. Profiles, followers lists, follow requests, notifications
+and people search work.
 
-- **Screen Time:** put an app limit on Instagram and read messages at
-  `instagram.com/direct/inbox/` in Safari. Add *instagram.com/explore* and *instagram.com/reels* to
-  Screen Time › Content Restrictions › Never Allow websites.
-- **Shortcuts automation:** *When Instagram is opened › Open URL* `https://www.instagram.com/direct/inbox/`.
-  Every launch then lands in the inbox instead of the feed (it does not stop you tapping Reels
-  afterwards).
-- **Instagram's own settings:** *Settings › Time management* has a daily limit and quiet mode.
+Setup, about five minutes, no computer needed:
+
+1. Install **Userscripts** from the App Store (free, open source, by Justin Wasack).
+2. *Settings › Apps › Safari › Extensions › Userscripts*: turn it on and set *instagram.com* (or
+   *All websites*) to **Allow**.
+3. Open Userscripts once and tap *Set Userscripts Directory* to pick a folder (any folder is fine).
+4. In Safari, open
+   `https://raw.githubusercontent.com/aajiang618/korean-tutor/main/instagram-message-blocker/ios/dm-only.user.js`
+   (until this branch is merged, replace `main` with `claude/instagram-message-blocker-qi6xtq`).
+   Tap the extensions button in the address bar, choose *Userscripts*, and tap **Install**.
+5. Open `instagram.com` in Safari and log in. You should land in the inbox with no Home or Reels
+   links.
+6. Put it on the Home Screen the right way: in the **Shortcuts** app create a shortcut with a single
+   *Open URLs* action set to `https://www.instagram.com/direct/inbox/`, then *Add to Home Screen*.
+   Do **not** use Safari's own *Add to Home Screen* for instagram.com: web apps added that way run
+   without Safari extensions, so the script would not apply.
+7. Deal with the Instagram app: delete it, or block it in *Screen Time › App Limits* with a
+   one-minute limit. Keeping it installed but unlimited defeats the point.
+
+Trade-off: instagram.com in Safari does not send push notifications for new messages. If you need
+them, keep the app installed under a Screen Time limit and let notifications through; open the
+messages from the Safari shortcut.
+
+**Cheaper option if you keep the app:** a Shortcuts automation that at least starts you in the
+inbox. *Shortcuts › Automation › + › App › Instagram › Is Opened › Run Immediately*, with one action
+*Open URLs* set to `instagram://direct/inbox` (if that does not open the inbox on your version,
+use `https://www.instagram.com/direct/inbox/`). Every launch then lands in messages, but nothing
+stops you tapping Reels afterwards.
+
+The script also works on a computer with Tampermonkey or Violentmonkey: open the same URL and the
+extension offers to install it. Two settings at the top of the file: `BLOCK_SINGLE_POSTS` (set to
+false to allow opening posts from profiles) and `HIDE_NAV_LINKS`.
