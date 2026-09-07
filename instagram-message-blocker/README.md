@@ -106,10 +106,12 @@ This is how `dist/dmonly-debug.apk` was produced.
 
 iOS has no equivalent of accessibility services for third-party apps, so nothing can hide the feed
 inside the Instagram *app*. Instagram's website has full messaging though, and Safari on iPhone can
-run user scripts. `ios/dm-only.user.js` is that script: on instagram.com it hides the Home, Explore
+run user scripts. `ios/dm-only.user.js` is that script. On instagram.com it hides the Home, Explore
 and Reels links, sends the feed, Explore and the Reels tab to the inbox, and sends a post, story or
-reel you open back to where you came from. Profiles, followers lists, follow requests, notifications
-and people search work.
+reel you open back to where you came from. To feel like an app rather than a web page it also blanks
+a blocked screen before it can flash, removes Safari's "Open in the app" banner, and lets the Back
+button leave Instagram instead of looping. Profiles, followers lists, follow requests, notifications
+and people search all keep working.
 
 Setup, about five minutes, no computer needed:
 
@@ -123,10 +125,21 @@ Setup, about five minutes, no computer needed:
    Tap the extensions button in the address bar, choose *Userscripts*, and tap **Install**.
 5. Open `instagram.com` in Safari and log in. You should land in the inbox with no Home or Reels
    links.
-6. Put it on the Home Screen the right way: in the **Shortcuts** app create a shortcut with a single
-   *Open URLs* action set to `https://www.instagram.com/direct/inbox/`, then *Add to Home Screen*.
-   Do **not** use Safari's own *Add to Home Screen* for instagram.com: web apps added that way run
-   without Safari extensions, so the script would not apply.
+6. **Make it feel like an app with a Home Screen icon.** In the **Shortcuts** app, tap **+**, tap
+   **Add Action**, search **Open URLs**, and set the URL to
+   `https://www.instagram.com/direct/inbox/`. Tap the shortcut name at the top to rename it (for
+   example *Messages*) and tap the icon next to the name to pick a glyph and colour. Then, from the
+   shortcut, choose **Add to Home Screen**. Open Instagram from this icon from now on.
+
+   Why the Shortcut and not Safari's own *Add to Home Screen*: an icon made with Safari's *Add to
+   Home Screen* runs as a stand-alone web app **without Safari extensions**, so the blocker would
+   not load and the feed would come back. The Shortcut opens the page in real Safari, where the
+   script runs.
+
+   You leave this "app" the way you leave any app: swipe up to the Home Screen. Do not rely on the
+   in-page Back arrow to exit; the script now lets Back pass out of Instagram instead of looping,
+   but swiping up is cleaner.
+
 7. Deal with the Instagram app: delete it, or block it in *Screen Time › App Limits* with a
    one-minute limit. Keeping it installed but unlimited defeats the point.
 
