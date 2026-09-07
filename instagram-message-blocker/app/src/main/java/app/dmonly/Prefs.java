@@ -30,35 +30,37 @@ final class Prefs {
     static final String DEFAULT_REDIRECT_URL = "https://www.instagram.com/direct/inbox/";
 
     /**
-     * View-id fragments that only appear on screens we want to keep the user away from.
+     * View-id fragments of the screens we keep the user away from: the home feed, Reels, Explore and stories.
      * Instagram renames ids from time to time; the in-app screen inspector exists so these can be fixed
      * without rebuilding the app.
      */
     static final String DEFAULT_BLOCK = ""
-            + "# Bottom navigation bar: any screen that shows it is not a messages screen\n"
-            + "feed_tab\n"
-            + "search_tab\n"
-            + "clips_tab\n"
-            + "profile_tab\n"
-            + "creation_tab\n"
-            + "# Reels player: a reel opened from a chat goes back to the chat\n"
+            + "# Home feed: the post rows of the timeline\n"
+            + "row_feed_\n"
+            + "feed_timeline\n"
+            + "# Reels tab and the Reels player (a reel opened from a chat goes back to the chat)\n"
+            + "clips_tab [selected]\n"
             + "clips_viewer -> back\n"
-            + "# Stories player\n"
-            + "reel_viewer -> back\n"
-            + "# Explore / search results\n"
+            + "# Explore grid on the Search tab\n"
+            + "explore_grid\n"
             + "explore_\n"
-            + "# Main feed list\n"
-            + "feed_timeline\n";
+            + "# Stories player\n"
+            + "reel_viewer -> back\n";
 
-    /** Fragments that identify the inbox or a chat thread. Only consulted in strict mode. */
+    /** Screens that must stay reachable. These win over the block list, and strict mode allows only these. */
     static final String DEFAULT_ALLOW = ""
-            + "# Messages inbox and chat threads\n"
-            + "direct_inbox\n"
-            + "inbox_\n"
-            + "direct_thread\n"
-            + "thread_\n"
+            + "# Messages: inbox, chats, message requests\n"
+            + "direct_\n"
             + "row_thread_composer\n"
-            + "message_\n";
+            + "# Profiles (yours and other people's)\n"
+            + "profile_header\n"
+            + "# Follow requests, followers / following lists, notifications\n"
+            + "follow_request\n"
+            + "follow_list\n"
+            + "row_newsfeed\n"
+            + "activity_feed\n"
+            + "# People search results\n"
+            + "row_search_user\n";
 
     private Prefs() {
     }

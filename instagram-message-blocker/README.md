@@ -1,8 +1,9 @@
 # DM Only — Instagram messages without the feed
 
-A tiny Android app (no dependencies, ~30 KB) that lets you use Instagram **only for messages**.
-Whenever the feed, Reels, Explore, stories or a profile page shows up, it sends you straight back
-to your inbox. Chats, message requests and the inbox itself work normally.
+A tiny Android app (no dependencies, ~30 KB) that lets you use Instagram **for messages and
+people, not for scrolling**. Whenever the home feed, Reels, the Explore grid or a story shows up,
+it sends you straight back to your inbox. Chats, message requests, follow requests, profiles,
+following people and searching for people all work normally.
 
 It is an [accessibility service](https://developer.android.com/guide/topics/ui/accessibility/service):
 it reads the view ids of the screen Instagram is showing, compares them with a small rule list, and
@@ -28,17 +29,25 @@ Repeat on each Android phone. Uninstall or switch the service off any time; the 
 
 ## What it does exactly
 
-| Screen in Instagram                                   | Result                                    |
-| ----------------------------------------------------- | ----------------------------------------- |
-| Inbox, chats, message requests, notes in the inbox    | Allowed                                   |
-| Feed, Explore/Search, Reels tab, Profile tab, Create  | Jump to the inbox (configurable)          |
-| A reel or story opened from a chat                    | Back to the chat                          |
-| Backing out of messages onto the feed                 | Leaves Instagram (goes to the home screen), so you are not bounced back into the inbox forever. Switchable. |
+| Screen in Instagram                                        | Result                                    |
+| ---------------------------------------------------------- | ----------------------------------------- |
+| Inbox, chats, message requests, notes                      | Allowed                                   |
+| Profiles, follow / unfollow, followers and following lists | Allowed                                   |
+| Follow requests, notifications                             | Allowed                                   |
+| Searching for people (the results list)                    | Allowed                                   |
+| Home feed, Reels tab, Explore grid                         | Jump to the inbox (configurable)          |
+| A reel or story opened from a chat or profile              | Back to where you were                    |
+| Opening a single post from a profile                       | Blocked (it uses the feed layout); the profile grid itself is visible |
+| Backing out of messages onto the feed                      | Leaves Instagram (goes to the home screen), so you are not bounced back into the inbox forever. Switchable. |
+
+Rules come in two lists. *Always allowed* rules win over *blocked* rules, so a profile stays
+reachable even when it is stacked on top of the blocked feed. Screens matching neither list are
+allowed unless strict mode is on.
 
 - **Pause for 15 minutes** when you genuinely need settings or a profile.
-- **Strict mode** flips the logic: every screen that is not recognised as messages is blocked. More
-  thorough, but it depends on the inbox being recognised, so try it only after the inspector shows
-  the inbox ids matching an allow pattern.
+- **Strict mode** blocks every screen that does not match an *always allowed* rule. More thorough,
+  but it depends on the inbox, profiles and so on being recognised, so try it only after the
+  inspector shows those screens as "allowed by:" a rule rather than "no rule matched".
 - Action on a blocked screen: *jump to inbox* (default), *press Back*, or *go to home screen*.
 - **Loop guard:** if the app has to act 6 times within 12 seconds it assumes it cannot recognise the
   inbox, goes to the home screen and pauses itself for 30 seconds instead of fighting you.
@@ -49,23 +58,26 @@ Instagram renames its internal view ids every few months. The rules are therefor
 app and there is a **Screen inspector** at the bottom that shows the ids and content descriptions
 the service saw on the last Instagram screen, plus the last decisions.
 
-If a screen that should be blocked is not (or messages get blocked):
+If a screen that should be blocked is not, or a screen you need gets blocked:
 
-1. Open that screen in Instagram, switch back to DM Only, tap **Refresh**.
+1. Open that screen in Instagram, switch back to DM Only, tap **Refresh**. The first lines say
+   which rule decided ("blocked by: row_feed_", "allowed by: profile_header", "no rule matched").
 2. Pick an id that is specific to that screen from the list (for the feed it will be something like
-   `feed_tab`; for Reels `clips_viewer_...`).
-3. Add it to the block list (or the allow list for message screens) and tap **Save rules**.
+   `row_feed_...`; for Reels `clips_viewer_...`; for a profile `profile_header...`).
+3. Add it to the *blocked* list, or to the *always allowed* list for a screen you need, and tap
+   **Save rules**.
 
 Rule syntax, one per line:
 
 ```
-clips_tab                 # substring of a view id, case-insensitive
+clips_viewer              # substring of a view id, case-insensitive
+clips_tab [selected]      # the same, but only while that bottom tab is the active one
 desc:search and explore   # match a content description instead of an id
 clips_viewer -> back      # override the action for this screen: inbox, back or home
 # comments start with #
 ```
 
-Block rules win over allow rules; the first matching block rule decides the action.
+Always-allowed rules win over blocked rules; within a list the first match decides.
 
 ## Building it yourself
 

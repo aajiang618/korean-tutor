@@ -177,10 +177,10 @@ public class GuardService extends AccessibilityService implements SharedPreferen
         }
         Snapshot snapshot = Snapshot.capture(root, MAX_NODES);
         Rules.Verdict verdict = rules.evaluate(snapshot);
-        if (verdict == null) {
+        if (!verdict.blocked) {
             prevAllowed = true;
             prevAllowedAt = now;
-            record(new Decision(now, false, "no block pattern matched", ACTION_NONE, snapshot), false);
+            record(new Decision(now, false, verdict.reason, ACTION_NONE, snapshot), false);
             return;
         }
         String chosen = chooseAction(verdict, now);

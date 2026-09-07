@@ -16,7 +16,7 @@
     <string name="pause_status_none">Not paused</string>
 
     <string name="header_behaviour">Behaviour</string>
-    <string name="switch_strict">Strict mode: block every screen that isn’t recognised as messages</string>
+    <string name="switch_strict">Strict mode: block every screen that doesn’t match an “always allowed” rule</string>
     <string name="switch_home_on_backout">Backing out of messages onto the feed leaves Instagram (instead of bouncing back to the inbox)</string>
     <string name="label_action">When a blocked screen appears:</string>
     <string name="action_inbox">Jump to the messages inbox</string>
@@ -26,15 +26,15 @@
     <string name="btn_test_inbox">Test: open Instagram inbox</string>
 
     <string name="header_rules">Rules</string>
-    <string name="rules_help">One pattern per line, case-insensitive. A plain pattern matches Instagram view ids (for example clips_tab). Prefix with desc: to match a content description instead (for example desc:reels). Add -&gt; back, -&gt; home or -&gt; inbox after a pattern to override the action for that screen. Lines starting with # are comments.</string>
-    <string name="label_block_patterns">Block when any of these are on screen:</string>
-    <string name="label_allow_patterns">Recognised as a messages screen (used by strict mode):</string>
+    <string name="rules_help">One pattern per line, case-insensitive. A plain pattern matches Instagram view ids (for example clips_viewer). Add [selected] to match the active bottom tab (clips_tab [selected]). Prefix with desc: to match a content description instead (for example desc:reels). Add -&gt; back, -&gt; home or -&gt; inbox after a pattern to override the action for that screen. Lines starting with # are comments.</string>
+    <string name="label_block_patterns">Blocked screens (feed, Reels, Explore, stories):</string>
+    <string name="label_allow_patterns">Always allowed (messages, profiles, follow requests). These win over blocked:</string>
     <string name="btn_save_rules">Save rules</string>
     <string name="btn_reset_rules">Reset to defaults</string>
     <string name="toast_rules_saved">Rules saved</string>
 
     <string name="header_inspector">Screen inspector</string>
-    <string name="inspector_help">Shows what the service last saw inside Instagram. If a screen is not blocked (or messages get blocked), open that screen in Instagram, come back here and copy an id from the list into the rules above.</string>
+    <string name="inspector_help">Shows what the service last saw inside Instagram and which rule decided. If a screen is wrongly blocked or wrongly allowed, open it in Instagram, come back here and copy one of its ids into the matching list above.</string>
     <string name="btn_refresh">Refresh</string>
     <string name="btn_copy">Copy</string>
     <string name="inspector_empty">Nothing captured yet. Enable the service, open Instagram, then come back.</string>

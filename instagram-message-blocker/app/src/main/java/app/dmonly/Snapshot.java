@@ -45,7 +45,12 @@ final class Snapshot {
                 String id = node.getViewIdResourceName();
                 if (id != null) {
                     int slash = id.indexOf('/');
-                    ids.add(slash >= 0 ? id.substring(slash + 1) : id);
+                    String name = slash >= 0 ? id.substring(slash + 1) : id;
+                    ids.add(name);
+                    if (node.isSelected()) {
+                        // Lets a rule target the active bottom tab, e.g. "clips_tab [selected]".
+                        ids.add(name + " [selected]");
+                    }
                 }
                 CharSequence desc = node.getContentDescription();
                 if (desc != null) {

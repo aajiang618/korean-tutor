@@ -10,6 +10,7 @@ import java.util.Locale;
  * Syntax, one entry per line:
  * <pre>
  *   clips_tab              plain entry: case-insensitive substring of a view id (package prefix removed)
+ *   clips_tab [selected]   the same id, but only while that node is selected (the active bottom tab)
  *   desc:reels             matches content descriptions instead of ids
  *   clips_viewer -> back   optional action override: inbox, back or home
  *   # comment
@@ -31,12 +32,14 @@ final class Rules {
         }
     }
 
-    /** Why a screen was blocked and, if the rule says so, what to do about it. */
+    /** Whether a screen is allowed, which rule decided it and, for blocked screens, an optional action override. */
     static final class Verdict {
+        final boolean blocked;
         final String reason;
         final String action;
 
-        Verdict(String reason, String action) {
+        Verdict(boolean blocked, String reason, String action) {
+            this.blocked = blocked;
             this.reason = reason;
             this.action = action;
         }
@@ -97,15 +100,22 @@ final class Rules {
         return null;
     }
 
-    /** Returns null when the screen is allowed, otherwise why it is blocked. */
+    /**
+     * Allow rules win over block rules, so a profile opened from the feed stack stays reachable even though
+     * the feed itself is blocked. Screens matching neither list are allowed unless strict mode is on.
+     */
     Verdict evaluate(Snapshot s) {
+        Pattern ok = firstMatch(allow, s);
+        if (ok != null) {
+            return new Verdict(false, "allowed by: " + ok.source, null);
+        }
         Pattern hit = firstMatch(block, s);
         if (hit != null) {
-            return new Verdict(hit.source, hit.action);
+            return new Verdict(true, "blocked by: " + hit.source, hit.action);
         }
-        if (strict && firstMatch(allow, s) == null) {
-            return new Verdict("strict mode: no messages pattern found", null);
+        if (strict) {
+            return new Verdict(true, "strict mode: no allow rule matched", null);
         }
-        return null;
+        return new Verdict(false, "no rule matched", null);
     }
 }
