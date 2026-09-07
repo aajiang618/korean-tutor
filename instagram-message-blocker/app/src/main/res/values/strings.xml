@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DM Only</string>
+    <string name="service_label">DM Only for Instagram</string>
+    <string name="service_description">Watches Instagram and sends you back to your messages whenever the feed, Reels, Explore, stories or a profile page appears. It only reads the screen while Instagram is open and never sends data anywhere.</string>
+
+    <string name="status_service_on">Accessibility service: ON</string>
+    <string name="status_service_off">Accessibility service: OFF — tap below to enable it</string>
+    <string name="btn_open_accessibility">Open accessibility settings</string>
+    <string name="restricted_hint">Android 13+: if the toggle is greyed out with a “Restricted setting” message, go to Settings › Apps › DM Only › ⋮ menu › “Allow restricted settings”, then come back.</string>
+
+    <string name="switch_enabled">Blocking enabled</string>
+    <string name="btn_pause">Pause for 15 minutes</string>
+    <string name="btn_resume">Resume now</string>
+    <string name="pause_status_active">Paused until %1$s</string>
+    <string name="pause_status_none">Not paused</string>
+
+    <string name="header_behaviour">Behaviour</string>
+    <string name="switch_strict">Strict mode: block every screen that isn’t recognised as messages</string>
+    <string name="switch_home_on_backout">Backing out of messages onto the feed leaves Instagram (instead of bouncing back to the inbox)</string>
+    <string name="label_action">When a blocked screen appears:</string>
+    <string name="action_inbox">Jump to the messages inbox</string>
+    <string name="action_back">Press Back</string>
+    <string name="action_home">Go to the home screen</string>
+    <string name="label_redirect_url">Inbox link used for “Jump to inbox”:</string>
+    <string name="btn_test_inbox">Test: open Instagram inbox</string>
+
+    <string name="header_rules">Rules</string>
+    <string name="rules_help">One pattern per line, case-insensitive. A plain pattern matches Instagram view ids (for example clips_tab). Prefix with desc: to match a content description instead (for example desc:reels). Add -&gt; back, -&gt; home or -&gt; inbox after a pattern to override the action for that screen. Lines starting with # are comments.</string>
+    <string name="label_block_patterns">Block when any of these are on screen:</string>
+    <string name="label_allow_patterns">Recognised as a messages screen (used by strict mode):</string>
+    <string name="btn_save_rules">Save rules</string>
+    <string name="btn_reset_rules">Reset to defaults</string>
+    <string name="toast_rules_saved">Rules saved</string>
+
+    <string name="header_inspector">Screen inspector</string>
+    <string name="inspector_help">Shows what the service last saw inside Instagram. If a screen is not blocked (or messages get blocked), open that screen in Instagram, come back here and copy an id from the list into the rules above.</string>
+    <string name="btn_refresh">Refresh</string>
+    <string name="btn_copy">Copy</string>
+    <string name="inspector_empty">Nothing captured yet. Enable the service, open Instagram, then come back.</string>
+    <string name="toast_copied">Copied to clipboard</string>
+
+    <string name="toast_paused">DM Only paused for 15 minutes</string>
+    <string name="toast_resumed">DM Only resumed</string>
+    <string name="toast_loop">DM Only: could not find the messages screen, paused for 30 s. Check the screen inspector.</string>
+    <string name="toast_no_instagram">Instagram is not installed or did not accept the link</string>
+</resources>
