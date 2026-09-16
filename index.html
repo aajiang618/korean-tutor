@@ -2111,8 +2111,8 @@ function applyLayout(){db.settings.layout='cards'}
 const DAY_MS=864e5;
 const STARTER_CLUSTERS=[
  {title:'Greetings & meeting people',sents:[
-  ['안녕하세요!','Hello!'],
-  ['만나서 반가워요.','Nice to meet you.'],
+  ['안녕하세요!','Hello! (informal)'],
+  ['만나서 반가워요.','Nice to meet you. (informal)'],
   ['오랜만이에요!','Long time no see!'],
   ['잘 지냈어요?','Have you been well?'],
   ['잘 지냈어요. 그쪽은요?','I have been well — and you?'],
@@ -2126,8 +2126,8 @@ const STARTER_CLUSTERS=[
   ['앉으세요.','Please sit down.'],
   ['오늘 날씨가 좋네요.','The weather is nice today.'],
   ['주말 잘 보내세요!','Have a good weekend!'],
-  ['안녕히 가세요.','Goodbye — to the person leaving.'],
-  ['안녕히 계세요.','Goodbye — when you are the one leaving.'],
+  ['안녕히 가세요.','Goodbye — to the person leaving. (informal)'],
+  ['안녕히 계세요.','Goodbye — to the person staying. (informal)'],
   ['내일 봐요!','See you tomorrow!'],
   ['다음에 또 봐요!','See you again next time!'],
   ['연락할게요.','I will contact you.'],
@@ -2136,7 +2136,21 @@ const STARTER_CLUSTERS=[
   ['그 사람을 어제 처음 만났어요.','I met that person for the first time yesterday.'],
   ['그는 한국어를 조금 할 수 있어요.','He can speak a little Korean.'],
   ['그녀가 저를 친구들에게 소개했어요.','She introduced me to her friends.'],
-  ['그들은 내일 다시 올 거예요.','They will come again tomorrow.']]},
+  ['그들은 내일 다시 올 거예요.','They will come again tomorrow.'],
+  ['안녕하십니까?','Hello. (formal)'],
+  ['반갑습니다.','Nice to meet you. (formal)'],
+  ['안녕히 가십시오.','Goodbye — to the person leaving. (formal)'],
+  ['안녕히 계십시오.','Goodbye — to the person staying. (formal)'],
+  ['죄송합니다.','I am sorry. (formal)'],
+  ['죄송해요.','I am sorry. (informal)'],
+  ['미안해요.','I am sorry. (informal)'],
+  ['괜찮습니다.','Never mind. / I am okay. (formal)'],
+  ['괜찮아요.','Never mind. / I am okay. (informal)'],
+  ['축하합니다.','Congratulations! (formal)'],
+  ['축하해요.','Congratulations! (informal)'],
+  ['고맙습니다.','Thank you. (formal)'],
+  ['감사합니다.','Thank you. (formal)'],
+  ['고마워요.','Thank you. (informal)']]},
  {title:'People & actions',sents:[
   ['친구가 커피를 마셔요.','My friend is drinking coffee.'],
   ['엄마가 요리를 해요.','Mom is cooking.'],
@@ -2335,6 +2349,26 @@ function seedClusters(){
         const have=new Set(ex.sentences.map(x=>x.ko));
         s.sents.forEach(p=>{if(!have.has(p[0]))ex.sentences.push({id:crypto.randomUUID(),ko:p[0],en:p[1],miss:0})});
       });
+    });
+    save();
+  }
+  if(!db.progress.clusterSeed5){
+    /* v5: formal + informal register greetings from Every Korean 1 join the greetings set
+       (additive by ko; existing informal entries get their register stated in the label) */
+    db.progress.clusterSeed5=true;
+    const g=STARTER_CLUSTERS.find(s=>s.title==='Greetings & meeting people');
+    const relabel={'안녕하세요!':'Hello! (informal)','만나서 반가워요.':'Nice to meet you. (informal)',
+      '안녕히 가세요.':'Goodbye — to the person leaving. (informal)',
+      '안녕히 계세요.':'Goodbye — to the person staying. (informal)'};
+    const oldLabel={'안녕하세요!':'Hello!','만나서 반가워요.':'Nice to meet you.',
+      '안녕히 가세요.':'Goodbye — to the person leaving.',
+      '안녕히 계세요.':'Goodbye — when you are the one leaving.'};
+    db.clusters.filter(c=>c.source==='starter'&&(c.title==='Greetings & meeting people'||c.title==='Introducing yourself'))
+    .forEach(ex=>{
+      const have=new Set(ex.sentences.map(x=>x.ko));
+      g.sents.forEach(p=>{if(!have.has(p[0]))ex.sentences.push({id:crypto.randomUUID(),ko:p[0],en:p[1],miss:0})});
+      /* only restamp labels the user has not edited themselves */
+      ex.sentences.forEach(x=>{if(relabel[x.ko]&&x.en===oldLabel[x.ko])x.en=relabel[x.ko]});
     });
     save();
   }
