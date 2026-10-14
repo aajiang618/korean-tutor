@@ -2475,7 +2475,44 @@ const STARTER_CLUSTERS=[
   ['이만 원이에요.','It is 20,000 won.'],
   ['십만 원이에요.','It is 100,000 won.'],
   ['이거 주세요.','Please give me this one.'],
-  ['너무 비싸요.','It is too expensive.']]}
+  ['너무 비싸요.','It is too expensive.']]},
+ {title:'Korean 1 · Ordering & paying',sents:[
+  ['어서 오세요.','Welcome.'],
+  ['뭐 드릴까요?','What can I get you?'],
+  ['참치 샌드위치 그리고 카페라테 주세요.','A tuna sandwich and a cafe latte, please.'],
+  ['얼마예요?','How much is it?'],
+  ['모두 만 오백 원이에요.','It is 10,500 won altogether.'],
+  ['네, 여기요.','Yes, here you are.'],
+  ['영수증 드릴까요?','Shall I give you a receipt?'],
+  ['아니요. 필요 없어요.','No. I do not need it.'],
+  ['잠시만요.','One moment, please.'],
+  ['감사합니다.','Thank you.'],
+  ['참치 샌드위치는 육천 원이에요.','The tuna sandwich is 6,000 won.'],
+  ['햄치즈 샌드위치는 칠천 원이에요.','The ham and cheese sandwich is 7,000 won.'],
+  ['계란 샌드위치는 오천 원이에요.','The egg sandwich is 5,000 won.'],
+  ['치킨 샐러드는 구천 원이에요.','The chicken salad is 9,000 won.'],
+  ['아이스 아메리카노는 사천 원이에요.','The iced americano is 4,000 won.'],
+  ['카페라테는 사천오백 원이에요.','The cafe latte is 4,500 won.'],
+  ['녹차는 오천 원이에요.','The green tea is 5,000 won.'],
+  ['딸기 주스는 오천육백 원이에요.','The strawberry juice is 5,600 won.'],
+  ['초콜릿 아이스크림은 삼천오백 원이에요.','The chocolate ice cream is 3,500 won.'],
+  ['모두 얼마예요?','How much is it altogether?'],
+  ['치킨 샐러드 그리고 녹차 주세요.','A chicken salad and a green tea, please.'],
+  ['모두 만 사천 원이에요.','It is 14,000 won altogether.'],
+  ['계란 샌드위치 그리고 딸기 주스 주세요.','An egg sandwich and a strawberry juice, please.'],
+  ['모두 만 육백 원이에요.','It is 10,600 won altogether.'],
+  ['손님은 케이크 그리고 우유 주문해요.','The customer orders cake and milk.'],
+  ['이 케이크 그리고 우유 주세요.','This cake and milk, please.'],
+  ['모두 만 천 원이에요.','It is 11,000 won altogether.'],
+  ['여기는 도서관이에요.','This place is a library.'],
+  ['손님은 영수증이 필요 없어요.','The customer does not need a receipt.'],
+  ['여기는 카페예요.','This place is a cafe.'],
+  ['커피 주세요.','Coffee, please.'],
+  ['녹차 주세요.','Green tea, please.'],
+  ['영수증 주세요.','Please give me a receipt.'],
+  ['아이스 아메리카노 주세요.','An iced americano, please.'],
+  ['초콜릿 아이스크림 주세요.','Chocolate ice cream, please.'],
+  ['샌드위치 있어요?','Do you have sandwiches?']]}
 ];
 function newCluster(title,source,pairs){return{id:crypto.randomUUID(),title,source,created:Date.now(),
   started:null,lastReview:null,reviews:0,sessions:{date:null,slots:[]},
@@ -2547,6 +2584,14 @@ function seedClusters(){
     STARTER_CLUSTERS.filter(isK1).forEach(topUpStarter);
     const rv=topUpStarter({title:K1_REVIEW_TITLE,sents:korean1Pairs()});
     /* a review set is for going through everything, so it opens with nothing hidden */
+    if(rv&&!rv.started)rv.size=rv.sentences.length;
+    save();
+  }
+  if(!db.progress.clusterSeed8){
+    /* v8: the shop dialogue, its menu and the listening section join Korean 1 and the midterm */
+    db.progress.clusterSeed8=true;
+    STARTER_CLUSTERS.filter(isK1).forEach(topUpStarter);
+    const rv=topUpStarter({title:K1_REVIEW_TITLE,sents:korean1Pairs()});
     if(rv&&!rv.started)rv.size=rv.sentences.length;
     save();
   }
