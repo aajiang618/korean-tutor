@@ -2442,7 +2442,40 @@ const STARTER_CLUSTERS=[
   ['네, 있어요.','Yes, there is.'],
   ['아니요, 없어요.','No, there is not.'],
   ['하지만 커피숍이 없어요.','But there is not a coffee shop.'],
-  ['저도 학교에 가요.','I am going to the school, too.']]}
+  ['저도 학교에 가요.','I am going to the school, too.']]},
+ {title:'Korean 1 · Numbers & money',sents:[
+  ['일, 이, 삼, 사, 오','1, 2, 3, 4, 5'],
+  ['육, 칠, 팔, 구, 십','6, 7, 8, 9, 10'],
+  ['십일, 십이, 십삼, 십사, 십오','11, 12, 13, 14, 15'],
+  ['십육, 십칠, 십팔, 십구, 이십','16, 17, 18, 19, 20'],
+  ['삼십, 사십, 오십, 육십','30, 40, 50, 60'],
+  ['칠십, 팔십, 구십, 백','70, 80, 90, 100'],
+  ['백, 천, 만','100 / 1,000 / 10,000'],
+  ['일억, 십억, 백억, 천억, 일조','100 million / 1 / 10 / 100 billion / 1 trillion'],
+  ['십 원','10 won'],
+  ['오십 원','50 won'],
+  ['백 원','100 won'],
+  ['오백 원','500 won'],
+  ['천 원','1,000 won'],
+  ['오천 원','5,000 won'],
+  ['만 원','10,000 won'],
+  ['오만 원','50,000 won'],
+  ['얼마예요?','How much is it?'],
+  ['천 원이에요.','It is 1,000 won.'],
+  ['오만 육백 원이에요.','It is 50,600 won.'],
+  ['이건 만 원이에요.','This is 10,000 won.'],
+  ['수박은 이만 오천 원이에요.','The watermelon is 25,000 won.'],
+  ['이것은 얼마예요?','How much is this?'],
+  ['그건 얼마예요?','How much is that?'],
+  ['저것은 얼마예요?','How much is that over there?'],
+  ['커피는 얼마예요?','How much is the coffee?'],
+  ['이 책은 얼마예요?','How much is this book?'],
+  ['삼천 원이에요.','It is 3,000 won.'],
+  ['만 오천 원이에요.','It is 15,000 won.'],
+  ['이만 원이에요.','It is 20,000 won.'],
+  ['십만 원이에요.','It is 100,000 won.'],
+  ['이거 주세요.','Please give me this one.'],
+  ['너무 비싸요.','It is too expensive.']]}
 ];
 function newCluster(title,source,pairs){return{id:crypto.randomUUID(),title,source,created:Date.now(),
   started:null,lastReview:null,reviews:0,sessions:{date:null,slots:[]},
@@ -2505,14 +2538,35 @@ function seedClusters(){
   if(!db.progress.clusterSeed6){
     /* v6: the Every Korean 1 sections arrive as their own clusters (create, or top up by ko) */
     db.progress.clusterSeed6=true;
-    STARTER_CLUSTERS.filter(s=>s.title.indexOf('Korean 1')===0).forEach(s=>{
-      const ex=db.clusters.find(c=>c.source==='starter'&&c.title===s.title);
-      if(!ex){db.clusters.push(newCluster(s.title,'starter',s.sents));return}
-      const have=new Set(ex.sentences.map(x=>x.ko));
-      s.sents.forEach(p=>{if(!have.has(p[0]))ex.sentences.push({id:crypto.randomUUID(),ko:p[0],en:p[1],miss:0})});
-    });
+    STARTER_CLUSTERS.filter(isK1).forEach(topUpStarter);
     save();
   }
+  if(!db.progress.clusterSeed7){
+    /* v7: numbers & money joins Korean 1, and every Korean 1 line collects into one midterm set */
+    db.progress.clusterSeed7=true;
+    STARTER_CLUSTERS.filter(isK1).forEach(topUpStarter);
+    const rv=topUpStarter({title:K1_REVIEW_TITLE,sents:korean1Pairs()});
+    /* a review set is for going through everything, so it opens with nothing hidden */
+    if(rv&&!rv.started)rv.size=rv.sentences.length;
+    save();
+  }
+}
+const K1_REVIEW_TITLE='Korean 1 \u00b7 Midterm review';
+function isK1(s){return s.title.indexOf('Korean 1')===0}
+/* create the starter set, or add only the lines it is missing; returns the cluster */
+function topUpStarter(s){
+  const ex=db.clusters.find(c=>c.source==='starter'&&c.title===s.title);
+  if(!ex){const c=newCluster(s.title,'starter',s.sents);db.clusters.push(c);return c}
+  const have=new Set(ex.sentences.map(x=>x.ko));
+  s.sents.forEach(p=>{if(!have.has(p[0]))ex.sentences.push({id:crypto.randomUUID(),ko:p[0],en:p[1],miss:0})});
+  return ex;
+}
+/* every Korean 1 line, in section order, deduped by Korean */
+function korean1Pairs(){
+  const seen=new Set(),out=[];
+  STARTER_CLUSTERS.filter(s=>isK1(s)&&s.title!==K1_REVIEW_TITLE)
+    .forEach(s=>s.sents.forEach(p=>{if(!seen.has(p[0])){seen.add(p[0]);out.push(p)}}));
+  return out;
 }
 /* ---- adaptive: every saved lesson becomes / refreshes a cluster ---- */
 function syncUnitCluster(uid){
@@ -2734,7 +2788,7 @@ function renderClusterRun(){
       ${db.settings.key&&!isFavCluster(c)?`<button class="ico-btn" onclick="aiGrowCluster('${c.id}')" aria-label="Add AI sentences" title="Add AI sentences from your lessons">${svgi(ICO.grow)}</button>`:''}
       <button class="ico-btn ${_cl.edit?'on':''}" onclick="clToggleEdit()" aria-pressed="${!!_cl.edit}" aria-label="Edit sentences" title="Edit sentences">${svgi(ICO.edit)}</button>
       ${_cl.tab==='prep'&&!_cl.edit?`<button class="sh-btn ${db.settings.prepKoOnly?'on':''}" onclick="togglePrepKo()" aria-pressed="${!!db.settings.prepKoOnly}" title="Play only the Korean during preparation — no English translations">KO only</button>`:''}
-      <label class="cl-size"><input type="range" min="10" max="40" step="5" value="${size}"
+      <label class="cl-size"><input type="range" min="10" max="${Math.max(40,c.sentences.length)}" step="${c.sentences.length>40?1:5}" value="${size}"
         oninput="document.getElementById('szLbl').textContent=this.value" onchange="clSetSize(this.value)"
         aria-label="Cluster size"><span><b id="szLbl">${size}</b> sentences</span></label>
     </div>
