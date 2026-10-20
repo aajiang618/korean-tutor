@@ -2566,7 +2566,48 @@ const STARTER_CLUSTERS=[
   ['제 고향은 서울이에요.','My hometown is Seoul.'],
   ['서울에 공원이 있어요.','There is a park in Seoul.'],
   ['그리고 백화점도 있어요.','And there is a department store, too.'],
-  ['하지만 바다가 없어요.','But there is no sea.']]}
+  ['하지만 바다가 없어요.','But there is no sea.']]},
+ {title:'Korean 1 · Midterm (simplified)',sents:[
+  ['뭐예요?','What is it?'],
+  ['이것은 뭐예요?','What is this?'],
+  ['이것은 책이에요.','This is a book.'],
+  ['누구예요?','Who is he? / Who is she?'],
+  ['이 사람은 제 동생이에요.','This person is my younger brother.'],
+  ['어디예요?','Where is it?'],
+  ['백화점이에요.','It is a department store.'],
+  ['어디에 가요?','Where do you go?'],
+  ['저는 공원에 가요.','I am going to the park.'],
+  ['어느 나라 사람이에요?','Where are you from?'],
+  ['저는 한국 사람이에요.','I am from Korea.'],
+  ['얼마예요?','How much is it?'],
+  ['이 사과는 얼마예요?','How much is this apple?'],
+  ['만 칠천오백 원이에요.','It is 17,500 won.'],
+  ['안녕하세요?','Hello.'],
+  ['만나서 반가워요.','Nice to meet you.'],
+  ['학생이에요?','Are you a student?'],
+  ['저는 학생이에요.','I am a student.'],
+  ['저는 한국 친구가 없어요.','I do not have a Korean friend.'],
+  ['토마스 씨는 영국 사람이에요?','Is Thomas English?'],
+  ['네, 토마스 씨는 영국 사람이에요.','Yes, he is English.'],
+  ['생일은 언제예요?','When is your birthday?'],
+  ['죄송해요.','I am sorry.'],
+  ['이름은 뭐예요?','What is your name?'],
+  ['저는 화장지가 있어요.','I have toilet paper.'],
+  ['모두 만 오백 원이에요.','It is all 10,500 won.'],
+  ['선생님이에요?','Are you a teacher?'],
+  ['이 사람은 제 친구예요.','This person is my friend.'],
+  ['저것은 제 가방이에요.','That is my bag.'],
+  ['고마워요.','Thank you.'],
+  ['어서 오세요.','Welcome.'],
+  ['뭐 드릴까요?','What shall I get you?'],
+  ['영수증 주세요.','Receipt, please.'],
+  ['필요 없어요.','No need.'],
+  ['이것은 모자예요.','It is a cap.'],
+  ['저는 책이 있어요. 하지만 공책이 없어요.','I have a book, but I do not have a notebook.'],
+  ['기숙사에 편의점이 있어요?','Is there a convenience store in the dormitory?'],
+  ['기숙사에 편의점이 없어요.','There is no convenience store in the dormitory.'],
+  ['안녕하세요? 저는 마이클이에요. 저는 한국 사람이에요. 그리고 학생이에요. 반갑습니다.','Introduce yourself: Hello. I am Michael. I am Korean. And I am a student. Nice to meet you.'],
+  ['저는 지금 고향에 가요. 제 고향은 서울이에요. 서울에 공원이 있어요. 그리고 백화점도 있어요.','Introduce your hometown: I am going to my hometown now. My hometown is Seoul. There is a park in Seoul. And there is a department store, too.']]}
 ];
 function newCluster(title,source,pairs){return{id:crypto.randomUUID(),title,source,created:Date.now(),
   started:null,lastReview:null,reviews:0,sessions:{date:null,slots:[]},
@@ -2652,6 +2693,14 @@ function seedClusters(){
   if(!db.progress.clusterSeed9){
     /* v9: the class midterm sheet joins Korean 1, and the midterm set picks its lines up */
     db.progress.clusterSeed9=true;
+    STARTER_CLUSTERS.filter(isK1).forEach(topUpStarter);
+    const rv=topUpStarter({title:K1_REVIEW_TITLE,sents:korean1Pairs()});
+    if(rv&&!rv.started)rv.size=rv.sentences.length;
+    save();
+  }
+  if(!db.progress.clusterSeed10){
+    /* v10: the handout condensed to one line per numbered item */
+    db.progress.clusterSeed10=true;
     STARTER_CLUSTERS.filter(isK1).forEach(topUpStarter);
     const rv=topUpStarter({title:K1_REVIEW_TITLE,sents:korean1Pairs()});
     if(rv&&!rv.started)rv.size=rv.sentences.length;
