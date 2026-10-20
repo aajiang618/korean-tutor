@@ -584,6 +584,14 @@
   .snt.editing .del svg{width:17px;height:17px}
   .snt.editing .del:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .snt.playing .s-ko{font-weight:700}
+  .snt.favable{position:relative;padding-right:46px}
+  .snt .favmark{position:absolute;right:-4px;top:50%;transform:translateY(-50%);width:44px;height:44px;
+    border:0;background:none;padding:0;display:grid;place-items:center;color:var(--muted);
+    cursor:pointer;border-radius:50%;-webkit-tap-highlight-color:transparent}
+  .snt .favmark svg{width:20px;height:20px}
+  .snt .favmark.on{color:var(--bad)}
+  .snt .favmark:active{transform:translateY(-50%) scale(.88)}
+  .snt .favmark:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .snt.selable{padding-left:40px;position:relative}
   .snt.selable .selmark{position:absolute;left:0;top:50%;transform:translateY(-50%);width:26px;height:26px;
     border-radius:50%;border:1.5px solid var(--muted);display:flex;align-items:center;justify-content:center;color:transparent;cursor:pointer}
@@ -2103,8 +2111,8 @@ function applyLayout(){db.settings.layout='cards'}
 const DAY_MS=864e5;
 const STARTER_CLUSTERS=[
  {title:'Greetings & meeting people',sents:[
-  ['안녕하세요!','Hello!'],
-  ['만나서 반가워요.','Nice to meet you.'],
+  ['안녕하세요!','Hello! (informal)'],
+  ['만나서 반가워요.','Nice to meet you. (informal)'],
   ['오랜만이에요!','Long time no see!'],
   ['잘 지냈어요?','Have you been well?'],
   ['잘 지냈어요. 그쪽은요?','I have been well — and you?'],
@@ -2118,8 +2126,8 @@ const STARTER_CLUSTERS=[
   ['앉으세요.','Please sit down.'],
   ['오늘 날씨가 좋네요.','The weather is nice today.'],
   ['주말 잘 보내세요!','Have a good weekend!'],
-  ['안녕히 가세요.','Goodbye — to the person leaving.'],
-  ['안녕히 계세요.','Goodbye — when you are the one leaving.'],
+  ['안녕히 가세요.','Goodbye — to the person leaving. (informal)'],
+  ['안녕히 계세요.','Goodbye — to the person staying. (informal)'],
   ['내일 봐요!','See you tomorrow!'],
   ['다음에 또 봐요!','See you again next time!'],
   ['연락할게요.','I will contact you.'],
@@ -2128,7 +2136,21 @@ const STARTER_CLUSTERS=[
   ['그 사람을 어제 처음 만났어요.','I met that person for the first time yesterday.'],
   ['그는 한국어를 조금 할 수 있어요.','He can speak a little Korean.'],
   ['그녀가 저를 친구들에게 소개했어요.','She introduced me to her friends.'],
-  ['그들은 내일 다시 올 거예요.','They will come again tomorrow.']]},
+  ['그들은 내일 다시 올 거예요.','They will come again tomorrow.'],
+  ['안녕하십니까?','Hello. (formal)'],
+  ['반갑습니다.','Nice to meet you. (formal)'],
+  ['안녕히 가십시오.','Goodbye — to the person leaving. (formal)'],
+  ['안녕히 계십시오.','Goodbye — to the person staying. (formal)'],
+  ['죄송합니다.','I am sorry. (formal)'],
+  ['죄송해요.','I am sorry. (informal)'],
+  ['미안해요.','I am sorry. (informal)'],
+  ['괜찮습니다.','Never mind. / I am okay. (formal)'],
+  ['괜찮아요.','Never mind. / I am okay. (informal)'],
+  ['축하합니다.','Congratulations! (formal)'],
+  ['축하해요.','Congratulations! (informal)'],
+  ['고맙습니다.','Thank you. (formal)'],
+  ['감사합니다.','Thank you. (formal)'],
+  ['고마워요.','Thank you. (informal)']]},
  {title:'People & actions',sents:[
   ['친구가 커피를 마셔요.','My friend is drinking coffee.'],
   ['엄마가 요리를 해요.','Mom is cooking.'],
@@ -2290,7 +2312,261 @@ const STARTER_CLUSTERS=[
   ['그가 저에게 전화했어요.','He called me.'],
   ['그녀는 요즘 바빠요.','She is busy these days.'],
   ['그들은 지난 주말에 여행을 갔어요.','They went on a trip last weekend.'],
-  ['그는 오늘 기분이 좋아 보여요.','He looks like he is in a good mood today.']]}
+  ['그는 오늘 기분이 좋아 보여요.','He looks like he is in a good mood today.']]},
+/* ---- Every Korean 1 (Kim Seunghee) — one cluster per textbook section ---- */
+ {title:'Korean 1 · This, that, that over there',sents:[
+  ['이것은 뭐예요?','What is this?'],
+  ['이건 책이에요.','This is a book.'],
+  ['그것은 뭐예요?','What is that? (near you)'],
+  ['그건 안경이에요.','That is a pair of glasses.'],
+  ['저것은 뭐예요?','What is that over there?'],
+  ['저건 모자예요.','That over there is a cap.'],
+  ['이것은 한국어 책이에요.','This is a Korean book.'],
+  ['이 사람은 누구예요?','Who is this person?'],
+  ['이 사람은 토마스 씨예요.','This is Thomas.'],
+  ['이 사람은 제 친구예요.','This person is my friend.'],
+  ['그 사람은 누구예요?','Who is that person?'],
+  ['그 사람은 마이클이에요.','That person is Michael.'],
+  ['저 사람은 누구예요?','Who is that person over there?'],
+  ['저 사람은 제 여동생이에요.','That person over there is my younger sister.'],
+  ['저 사람은 존 씨예요.','That person over there is John.'],
+  ['이것은 시계예요.','This is a watch.'],
+  ['그것은 우산이에요.','That is an umbrella.'],
+  ['저것은 가방이에요.','That over there is a bag.'],
+  ['이건 제 책이에요.','This is my book.'],
+  ['그건 제 가방이 아니에요.','That is not my bag.'],
+  ['이 책은 한국어 책이에요.','This book is a Korean book.'],
+  ['저 사람은 제 선생님이에요.','That person over there is my teacher.'],
+  ['그 사람은 학생이에요.','That person is a student.'],
+  ['이 사람은 제 한국 친구예요.','This person is my Korean friend.']]},
+ {title:'Korean 1 · Going & coming',sents:[
+  ['어디에 가요?','Where are you going?'],
+  ['저는 학교에 가요.','I am going to school.'],
+  ['제임스 씨, 어디에 가요?','James, where are you going?'],
+  ['토마스 씨는 어디에 가요?','Where is Thomas going?'],
+  ['토마스 씨는 식당에 가요.','Thomas is going to the restaurant.'],
+  ['저는 바다에 가요.','I am going to the sea.'],
+  ['크리스탈은 서울에 와요.','Crystal is coming to Seoul.'],
+  ['저는 병원에 가요.','I am going to the hospital.'],
+  ['친구는 제주도에 와요.','My friend is coming to Jeju Island.'],
+  ['지금 어디에 가요?','Where are you going now?'],
+  ['저는 지금 도서관에 가요.','I am going to the library now.'],
+  ['저는 지금 기숙사에 가요.','I am going to the dormitory now.'],
+  ['저는 지금 고향에 가요.','I am going to my hometown now.'],
+  ['저는 은행에 가요.','I am going to the bank.'],
+  ['저는 시장에 가요.','I am going to the market.'],
+  ['저는 커피숍에 가요.','I am going to the coffee shop.'],
+  ['저는 편의점에 가요.','I am going to the convenience store.'],
+  ['저는 백화점에 가요.','I am going to the department store.'],
+  ['저는 집에 가요.','I am going home.'],
+  ['오늘 어디에 가요?','Where are you going today?'],
+  ['내일 학교에 가요.','I am going to school tomorrow.'],
+  ['주말에 시장에 가요.','I go to the market on the weekend.'],
+  ['저는 매일 학교에 가요.','I go to school every day.'],
+  ['친구가 한국에 와요.','My friend is coming to Korea.'],
+  ['선생님은 어디에 가요?','Where is the teacher going?'],
+  ['우리는 같이 식당에 가요.','We are going to the restaurant together.']]},
+ {title:'Korean 1 · Have & don\'t have',sents:[
+  ['한국어 책이 있어요?','Do you have a Korean book?'],
+  ['네, 저는 한국어 책이 있어요.','Yes, I have a Korean book.'],
+  ['커피숍이 있어요?','Is there a coffee shop?'],
+  ['아니요, 커피숍이 없어요.','No, there is not a coffee shop.'],
+  ['저는 한국 친구가 있어요.','I have a Korean friend.'],
+  ['백화점이 없어요.','There is not a department store.'],
+  ['책상이 있어요.','There is a desk.'],
+  ['의자가 없어요.','There is not a chair.'],
+  ['기숙사에 편의점이 있어요?','Is there a convenience store in the dormitory?'],
+  ['아니요, 편의점이 없어요.','No, there is not a convenience store.'],
+  ['하지만 자판기가 있어요.','But there is a vending machine.'],
+  ['제주도에 바다가 있어요.','There is a sea in Jeju Island.'],
+  ['그리고 한라산도 있어요.','And there is Mt. Halla, too.'],
+  ['시계가 있어요?','Do you have a watch?'],
+  ['네, 시계가 있어요.','Yes, I have a watch.'],
+  ['우산이 없어요.','I do not have an umbrella.'],
+  ['안경이 있어요.','I have glasses.'],
+  ['학교에 도서관이 있어요.','There is a library at the school.'],
+  ['여기에 은행이 있어요?','Is there a bank here?'],
+  ['아니요, 여기에 은행이 없어요.','No, there is not a bank here.'],
+  ['시간이 없어요.','I do not have time.'],
+  ['질문이 있어요.','I have a question.'],
+  ['한국 친구가 없어요.','I do not have a Korean friend.'],
+  ['집에 고양이가 있어요.','There is a cat at home.'],
+  ['가방에 책이 있어요.','There is a book in the bag.'],
+  ['식당에 불고기가 있어요.','The restaurant has bulgogi.']]},
+ {title:'Korean 1 · Where you are from',sents:[
+  ['저는 김종국이에요.','I am Kim Jongkook.'],
+  ['제 이름은 김종국이에요.','My name is Kim Jongkook.'],
+  ['저는 한국 사람이에요.','I am Korean.'],
+  ['저는 지금 고향에 가요.','I am going to my hometown now.'],
+  ['제 고향은 제주도예요.','My hometown is Jeju Island.'],
+  ['제주도에 바다가 있어요.','There is a sea in Jeju Island.'],
+  ['그리고 한라산도 있어요.','And there is Mt. Halla, too.'],
+  ['어느 나라 사람이에요?','What country are you from?'],
+  ['종국 씨는 어느 나라 사람이에요?','What country is Jongkook from?'],
+  ['종국 씨는 한국 사람이에요.','Jongkook is Korean.'],
+  ['종국 씨는 지금 어디에 가요?','Where is Jongkook going now?'],
+  ['종국 씨는 지금 고향에 가요.','Jongkook is going to his hometown now.'],
+  ['종국 씨 고향은 어디예요?','Where is Jongkook\'s hometown?'],
+  ['종국 씨 고향은 제주도예요.','Jongkook\'s hometown is Jeju Island.'],
+  ['고향이 어디예요?','Where is your hometown?'],
+  ['제 고향은 서울이에요.','My hometown is Seoul.'],
+  ['저는 미국 사람이에요.','I am American.'],
+  ['저는 학생이에요.','I am a student.'],
+  ['제 친구는 한국 사람이에요.','My friend is Korean.'],
+  ['저는 한국어를 공부해요.','I study Korean.'],
+  ['제 고향에 바다가 있어요.','There is a sea in my hometown.'],
+  ['제 고향에 산이 있어요.','There is a mountain in my hometown.'],
+  ['저는 캐나다에서 왔어요.','I came from Canada.'],
+  ['저 사람은 제주도 사람이에요.','That person over there is from Jeju Island.']]},
+ {title:'Korean 1 · Campus dialogue',sents:[
+  ['안나 씨, 지금 어디에 가요?','Anna, where are you going now?'],
+  ['도서관에 가요.','I am going to the library.'],
+  ['토마스 씨는 어디에 가요?','Thomas, where are you going?'],
+  ['저는 지금 기숙사에 가요.','I am going to the dormitory now.'],
+  ['기숙사에 편의점이 있어요?','Is there a convenience store in the dormitory?'],
+  ['아니요, 편의점이 없어요.','No, there is not a convenience store.'],
+  ['하지만 자판기가 있어요.','But there is a vending machine.'],
+  ['아! 그래요?','Oh! Really?'],
+  ['은행에 가요.','I am going to the bank.'],
+  ['은행에 커피숍이 있어요?','Is there a coffee shop at the bank?'],
+  ['학교에 가요.','I am going to the school.'],
+  ['학교에 도서관이 있어요?','Is there a library at the school?'],
+  ['네, 도서관이 있어요.','Yes, there is a library.'],
+  ['식당에 가요.','I am going to the restaurant.'],
+  ['식당에 불고기가 있어요?','Does the restaurant have bulgogi?'],
+  ['네, 불고기가 있어요.','Yes, there is bulgogi.'],
+  ['시장에 가요.','I am going to the market.'],
+  ['시장에 토마토가 있어요?','Does the market have tomatoes?'],
+  ['네, 토마토가 있어요.','Yes, there are tomatoes.'],
+  ['그래요?','Really?'],
+  ['네, 있어요.','Yes, there is.'],
+  ['아니요, 없어요.','No, there is not.'],
+  ['하지만 커피숍이 없어요.','But there is not a coffee shop.'],
+  ['저도 학교에 가요.','I am going to the school, too.']]},
+ {title:'Korean 1 · Numbers & money',sents:[
+  ['일, 이, 삼, 사, 오','1, 2, 3, 4, 5'],
+  ['육, 칠, 팔, 구, 십','6, 7, 8, 9, 10'],
+  ['십일, 십이, 십삼, 십사, 십오','11, 12, 13, 14, 15'],
+  ['십육, 십칠, 십팔, 십구, 이십','16, 17, 18, 19, 20'],
+  ['삼십, 사십, 오십, 육십','30, 40, 50, 60'],
+  ['칠십, 팔십, 구십, 백','70, 80, 90, 100'],
+  ['백, 천, 만','100 / 1,000 / 10,000'],
+  ['일억, 십억, 백억, 천억, 일조','100 million / 1 / 10 / 100 billion / 1 trillion'],
+  ['십 원','10 won'],
+  ['오십 원','50 won'],
+  ['백 원','100 won'],
+  ['오백 원','500 won'],
+  ['천 원','1,000 won'],
+  ['오천 원','5,000 won'],
+  ['만 원','10,000 won'],
+  ['오만 원','50,000 won'],
+  ['얼마예요?','How much is it?'],
+  ['천 원이에요.','It is 1,000 won.'],
+  ['오만 육백 원이에요.','It is 50,600 won.'],
+  ['이건 만 원이에요.','This is 10,000 won.'],
+  ['수박은 이만 오천 원이에요.','The watermelon is 25,000 won.'],
+  ['이것은 얼마예요?','How much is this?'],
+  ['그건 얼마예요?','How much is that?'],
+  ['저것은 얼마예요?','How much is that over there?'],
+  ['커피는 얼마예요?','How much is the coffee?'],
+  ['이 책은 얼마예요?','How much is this book?'],
+  ['삼천 원이에요.','It is 3,000 won.'],
+  ['만 오천 원이에요.','It is 15,000 won.'],
+  ['이만 원이에요.','It is 20,000 won.'],
+  ['십만 원이에요.','It is 100,000 won.'],
+  ['이거 주세요.','Please give me this one.'],
+  ['너무 비싸요.','It is too expensive.']]},
+ {title:'Korean 1 · Ordering & paying',sents:[
+  ['어서 오세요.','Welcome.'],
+  ['뭐 드릴까요?','What can I get you?'],
+  ['참치 샌드위치 그리고 카페라테 주세요.','A tuna sandwich and a cafe latte, please.'],
+  ['얼마예요?','How much is it?'],
+  ['모두 만 오백 원이에요.','It is 10,500 won altogether.'],
+  ['네, 여기요.','Yes, here you are.'],
+  ['영수증 드릴까요?','Shall I give you a receipt?'],
+  ['아니요. 필요 없어요.','No. I do not need it.'],
+  ['잠시만요.','One moment, please.'],
+  ['감사합니다.','Thank you.'],
+  ['참치 샌드위치는 육천 원이에요.','The tuna sandwich is 6,000 won.'],
+  ['햄치즈 샌드위치는 칠천 원이에요.','The ham and cheese sandwich is 7,000 won.'],
+  ['계란 샌드위치는 오천 원이에요.','The egg sandwich is 5,000 won.'],
+  ['치킨 샐러드는 구천 원이에요.','The chicken salad is 9,000 won.'],
+  ['아이스 아메리카노는 사천 원이에요.','The iced americano is 4,000 won.'],
+  ['카페라테는 사천오백 원이에요.','The cafe latte is 4,500 won.'],
+  ['녹차는 오천 원이에요.','The green tea is 5,000 won.'],
+  ['딸기 주스는 오천육백 원이에요.','The strawberry juice is 5,600 won.'],
+  ['초콜릿 아이스크림은 삼천오백 원이에요.','The chocolate ice cream is 3,500 won.'],
+  ['모두 얼마예요?','How much is it altogether?'],
+  ['치킨 샐러드 그리고 녹차 주세요.','A chicken salad and a green tea, please.'],
+  ['모두 만 사천 원이에요.','It is 14,000 won altogether.'],
+  ['계란 샌드위치 그리고 딸기 주스 주세요.','An egg sandwich and a strawberry juice, please.'],
+  ['모두 만 육백 원이에요.','It is 10,600 won altogether.'],
+  ['손님은 케이크 그리고 우유 주문해요.','The customer orders cake and milk.'],
+  ['이 케이크 그리고 우유 주세요.','This cake and milk, please.'],
+  ['모두 만 천 원이에요.','It is 11,000 won altogether.'],
+  ['여기는 도서관이에요.','This place is a library.'],
+  ['손님은 영수증이 필요 없어요.','The customer does not need a receipt.'],
+  ['여기는 카페예요.','This place is a cafe.'],
+  ['커피 주세요.','Coffee, please.'],
+  ['녹차 주세요.','Green tea, please.'],
+  ['영수증 주세요.','Please give me a receipt.'],
+  ['아이스 아메리카노 주세요.','An iced americano, please.'],
+  ['초콜릿 아이스크림 주세요.','Chocolate ice cream, please.'],
+  ['샌드위치 있어요?','Do you have sandwiches?']]},
+ {title:'Korean 1 · Midterm sheet 1-40',sents:[
+  ['뭐예요?','What is it?'],
+  ['무엇이에요?','What is it? (full form)'],
+  ['이것은 뭐예요?','What is this?'],
+  ['이것은 책이에요.','This is a book.'],
+  ['누구예요?','Who is he? / Who is she?'],
+  ['이 사람은 제 동생이에요.','This person is my younger sibling.'],
+  ['어디예요?','Where is it?'],
+  ['백화점이에요.','It is a department store.'],
+  ['어디에 가요?','Where do you go?'],
+  ['저는 공원에 가요.','I am going to the park.'],
+  ['어느 나라 사람이에요?','Where are you from?'],
+  ['저는 한국 사람이에요.','I am from Korea.'],
+  ['얼마예요?','How much is it?'],
+  ['이 사과는 얼마예요?','How much is this apple?'],
+  ['만 칠천오백 원이에요.','It is 17,500 won.'],
+  ['안녕하세요?','Hello.'],
+  ['반갑습니다.','Nice to meet you. (formal)'],
+  ['만나서 반가워요.','Nice to meet you. (informal)'],
+  ['학생이에요?','Are you a student?'],
+  ['저는 학생이에요.','I am a student.'],
+  ['저는 한국 친구가 없어요.','I do not have a Korean friend.'],
+  ['토마스 씨는 영국 사람이에요?','Is Thomas English?'],
+  ['네, 토마스 씨는 영국 사람이에요.','Yes, he is English.'],
+  ['생일은 언제예요?','When is your birthday?'],
+  ['미안합니다.','I am sorry. (formal)'],
+  ['죄송합니다.','I am sorry. (formal)'],
+  ['미안해요.','I am sorry. (informal)'],
+  ['죄송해요.','I am sorry. (informal)'],
+  ['이름은 뭐예요?','What is your name?'],
+  ['저는 화장지가 있어요.','I have toilet paper.'],
+  ['저는 휴지가 있어요.','I have tissue.'],
+  ['모두 만 오백 원이에요.','It is 10,500 won altogether.'],
+  ['선생님이에요?','Are you a teacher?'],
+  ['이 사람은 제 친구예요.','This person is my friend.'],
+  ['저것은 제 가방이에요.','That is my bag.'],
+  ['고마워요.','Thank you. (informal)'],
+  ['어서 오세요.','Welcome.'],
+  ['뭐 드릴까요?','What shall I get you?'],
+  ['영수증 주세요.','Receipt, please.'],
+  ['필요 없어요.','No need.'],
+  ['이것은 모자예요.','It is a cap.'],
+  ['저는 책이 있어요. 하지만 공책이 없어요.','I have a book, but I do not have a notebook.'],
+  ['기숙사에 편의점이 있어요?','Is there a convenience store in the dormitory?'],
+  ['기숙사에 편의점이 없어요.','There is no convenience store in the dormitory.'],
+  ['제 이름은 마이클이에요.','My name is Michael.'],
+  ['저는 한국 사람이에요. 그리고 학생이에요.','I am Korean. And I am a student.'],
+  ['저는 대학생이에요.','I am a university student.'],
+  ['저는 대학원생이에요.','I am a graduate student.'],
+  ['저는 지금 고향에 가요.','I am going to my hometown now.'],
+  ['제 고향은 서울이에요.','My hometown is Seoul.'],
+  ['서울에 공원이 있어요.','There is a park in Seoul.'],
+  ['그리고 백화점도 있어요.','And there is a department store, too.'],
+  ['하지만 바다가 없어요.','But there is no sea.']]}
 ];
 function newCluster(title,source,pairs){return{id:crypto.randomUUID(),title,source,created:Date.now(),
   started:null,lastReview:null,reviews:0,sessions:{date:null,slots:[]},
@@ -2330,6 +2606,74 @@ function seedClusters(){
     });
     save();
   }
+  if(!db.progress.clusterSeed5){
+    /* v5: formal + informal register greetings from Every Korean 1 join the greetings set
+       (additive by ko; existing informal entries get their register stated in the label) */
+    db.progress.clusterSeed5=true;
+    const g=STARTER_CLUSTERS.find(s=>s.title==='Greetings & meeting people');
+    const relabel={'안녕하세요!':'Hello! (informal)','만나서 반가워요.':'Nice to meet you. (informal)',
+      '안녕히 가세요.':'Goodbye — to the person leaving. (informal)',
+      '안녕히 계세요.':'Goodbye — to the person staying. (informal)'};
+    const oldLabel={'안녕하세요!':'Hello!','만나서 반가워요.':'Nice to meet you.',
+      '안녕히 가세요.':'Goodbye — to the person leaving.',
+      '안녕히 계세요.':'Goodbye — when you are the one leaving.'};
+    db.clusters.filter(c=>c.source==='starter'&&(c.title==='Greetings & meeting people'||c.title==='Introducing yourself'))
+    .forEach(ex=>{
+      const have=new Set(ex.sentences.map(x=>x.ko));
+      g.sents.forEach(p=>{if(!have.has(p[0]))ex.sentences.push({id:crypto.randomUUID(),ko:p[0],en:p[1],miss:0})});
+      /* only restamp labels the user has not edited themselves */
+      ex.sentences.forEach(x=>{if(relabel[x.ko]&&x.en===oldLabel[x.ko])x.en=relabel[x.ko]});
+    });
+    save();
+  }
+  if(!db.progress.clusterSeed6){
+    /* v6: the Every Korean 1 sections arrive as their own clusters (create, or top up by ko) */
+    db.progress.clusterSeed6=true;
+    STARTER_CLUSTERS.filter(isK1).forEach(topUpStarter);
+    save();
+  }
+  if(!db.progress.clusterSeed7){
+    /* v7: numbers & money joins Korean 1, and every Korean 1 line collects into one midterm set */
+    db.progress.clusterSeed7=true;
+    STARTER_CLUSTERS.filter(isK1).forEach(topUpStarter);
+    const rv=topUpStarter({title:K1_REVIEW_TITLE,sents:korean1Pairs()});
+    /* a review set is for going through everything, so it opens with nothing hidden */
+    if(rv&&!rv.started)rv.size=rv.sentences.length;
+    save();
+  }
+  if(!db.progress.clusterSeed8){
+    /* v8: the shop dialogue, its menu and the listening section join Korean 1 and the midterm */
+    db.progress.clusterSeed8=true;
+    STARTER_CLUSTERS.filter(isK1).forEach(topUpStarter);
+    const rv=topUpStarter({title:K1_REVIEW_TITLE,sents:korean1Pairs()});
+    if(rv&&!rv.started)rv.size=rv.sentences.length;
+    save();
+  }
+  if(!db.progress.clusterSeed9){
+    /* v9: the class midterm sheet joins Korean 1, and the midterm set picks its lines up */
+    db.progress.clusterSeed9=true;
+    STARTER_CLUSTERS.filter(isK1).forEach(topUpStarter);
+    const rv=topUpStarter({title:K1_REVIEW_TITLE,sents:korean1Pairs()});
+    if(rv&&!rv.started)rv.size=rv.sentences.length;
+    save();
+  }
+}
+const K1_REVIEW_TITLE='Korean 1 \u00b7 Midterm review';
+function isK1(s){return s.title.indexOf('Korean 1')===0}
+/* create the starter set, or add only the lines it is missing; returns the cluster */
+function topUpStarter(s){
+  const ex=db.clusters.find(c=>c.source==='starter'&&c.title===s.title);
+  if(!ex){const c=newCluster(s.title,'starter',s.sents);db.clusters.push(c);return c}
+  const have=new Set(ex.sentences.map(x=>x.ko));
+  s.sents.forEach(p=>{if(!have.has(p[0]))ex.sentences.push({id:crypto.randomUUID(),ko:p[0],en:p[1],miss:0})});
+  return ex;
+}
+/* every Korean 1 line, in section order, deduped by Korean */
+function korean1Pairs(){
+  const seen=new Set(),out=[];
+  STARTER_CLUSTERS.filter(s=>isK1(s)&&s.title!==K1_REVIEW_TITLE)
+    .forEach(s=>s.sents.forEach(p=>{if(!seen.has(p[0])){seen.add(p[0]);out.push(p)}}));
+  return out;
 }
 /* ---- adaptive: every saved lesson becomes / refreshes a cluster ---- */
 function syncUnitCluster(uid){
@@ -2356,6 +2700,7 @@ const STAGE_META={
 function dayKey(){return new Date().toDateString()}
 function todaySlot(){const h=new Date().getHours();return h<12?'Morning':h<18?'Afternoon':'Evening'}
 function clusterDue(c){
+  if(!c.sentences.length)return false; // an emptied set (e.g. cleared favorites) is never due
   const s=clusterStage(c);
   if(s==='new')return false;
   if(s==='learn')return!(c.sessions&&c.sessions.date===dayKey()&&c.sessions.slots.includes(todaySlot()));
@@ -2389,7 +2734,7 @@ function clRoot(){return document.getElementById('clusterRoot')}
 function clHome(t){_cl.home=t;_cl.newOpen=false;renderClusters()}
 function clRowHTML(c){
   const st=clusterStage(c),isDue=clusterDue(c);
-  const ric=isDue?ICO.repeat:st==='new'?ICO.spark:st==='retired'?ICO.check:ICO.head;
+  const ric=c.source==='favorites'?ICO.heart:isDue?ICO.repeat:st==='new'?ICO.spark:st==='retired'?ICO.check:ICO.head;
   return `<button class="cl-row" onclick="openCluster('${c.id}')">
     <span class="ric${isDue?' due':''}">${svgi(ric)}</span>
     <div class="body"><div class="t">${esc(c.title)}</div>
@@ -2415,7 +2760,8 @@ function renderClusters(){
   const due=db.clusters.filter(clusterDue);
   const bridged=clusterableUnits();
   const mine=db.clusters.filter(c=>c.source==='custom');
-  const reco=db.clusters.filter(c=>c.source!=='custom');
+  const reco=db.clusters.filter(c=>c.source!=='custom'&&c.source!=='favorites');
+  const fav=favCluster();
   el.innerHTML=`
     <div class="cl-block hero-spot">
       ${SPOT_LISTEN}
@@ -2427,6 +2773,10 @@ function renderClusters(){
         <button class="btn accent" onclick="startLoop()" ${anyStarted()?'':'disabled'}>${svgi(ICO.head,'bic')}Listen to everything on repeat</button>
       </div>
     </div>
+    ${fav&&fav.sentences.length?`<div class="cl-block">
+      <p class="cl-k">Favorites</p>
+      <div class="cl-list">${clRowHTML(fav)}</div>
+    </div>`:''}
     <nav class="cl-tabs" style="margin:4px 0 0">
       <button class="${home==='reco'?'on':''}" onclick="clHome('reco')">${svgi(ICO.spark)}Recommended</button>
       <button class="${home==='mine'?'on':''}" onclick="clHome('mine')">${svgi(ICO.edit)}My clusters${mine.length?' · '+mine.length:''}</button>
@@ -2476,6 +2826,7 @@ const ICO={
   spark:'<path d="M12 4l1.8 4.2L18 10l-4.2 1.8L12 16l-1.8-4.2L6 10l4.2-1.8z"/>',
   recall:'<circle cx="12" cy="12" r="8.5"/><path d="M9.7 9.9a2.3 2.3 0 1 1 3.2 2.1c-.7.3-.9.7-.9 1.4"/><line x1="12" y1="16.1" x2="12" y2="16.2"/>',
   plus:'<line x1="12" y1="5.5" x2="12" y2="18.5"/><line x1="5.5" y1="12" x2="18.5" y2="12"/>',
+  heart:'<path d="M12 20.2S4.4 15.3 4.4 10.2A3.95 3.95 0 0 1 12 7.9a3.95 3.95 0 0 1 7.6 2.3c0 5.1-7.6 10-7.6 10z"/>',
   edit:'<path d="M16.5 4.5l3 3L8 19l-4 1 1-4z"/><path d="M14 7l3 3"/>',
   chat:'<path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-4.5 4V6z"/>',
   trash:'<path d="M4.5 6.5h15"/><path d="M8 6.5V4.8A1.3 1.3 0 0 1 9.3 3.5h5.4A1.3 1.3 0 0 1 16 4.8v1.7"/><path d="M6.5 6.5l1 13a1.5 1.5 0 0 0 1.5 1.4h6a1.5 1.5 0 0 0 1.5-1.4l1-13"/><line x1="10" y1="10.5" x2="10" y2="16.5"/><line x1="14" y1="10.5" x2="14" y2="16.5"/>'
@@ -2527,7 +2878,7 @@ function renderClusterRun(){
     <div class="cl-top">
       <button class="ico-btn" onclick="clExit()" aria-label="Back to all clusters" title="All clusters">${svgi(ICO.back)}</button>
       <span class="cl-k" style="margin:0">${chunk} of ${c.sentences.length} · ~${wordCount} words</span>
-      <button class="ico-btn" style="margin-left:auto" onclick="deleteCluster()" aria-label="Delete this cluster" title="Delete this cluster">${svgi(ICO.trash)}</button>
+      <button class="ico-btn" style="margin-left:auto" onclick="deleteCluster()" aria-label="${isFavCluster(c)?'Clear all favorites':'Delete this cluster'}" title="${isFavCluster(c)?'Clear all favorites':'Delete this cluster'}">${svgi(ICO.trash)}</button>
     </div>
     <h2 class="cl-title">${esc(c.title)}</h2>
     <p class="cl-stageline">${STAGE_META[st][0]}${st==='learn'||st==='week1'?` · today: ${['Morning','Afternoon','Evening'].map(sl=>slots.includes(sl)?'<b class="done">'+sl+'</b>':'<b>'+sl+'</b>').join(' ')}`:''}</p>
@@ -2541,10 +2892,10 @@ function renderClusterRun(){
       <button class="ico-btn ${_ap.shuffle?'on':''}" onclick="apShuffle()" aria-pressed="${_ap.shuffle}" aria-label="Shuffle" title="Shuffle">${svgi(ICO.shuffle)}</button>
       ${_cl.edit?'':`<button class="ico-btn ${_cl.selMode?'on':''}" onclick="clToggleSelMode()" aria-pressed="${!!_cl.selMode}" aria-label="Select sentences to repeat" title="Select sentences to repeat">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M8.4 12.2l2.4 2.4 4.8-5"/></svg></button>`}
-      ${db.settings.key?`<button class="ico-btn" onclick="aiGrowCluster('${c.id}')" aria-label="Add AI sentences" title="Add AI sentences from your lessons">${svgi(ICO.grow)}</button>`:''}
+      ${db.settings.key&&!isFavCluster(c)?`<button class="ico-btn" onclick="aiGrowCluster('${c.id}')" aria-label="Add AI sentences" title="Add AI sentences from your lessons">${svgi(ICO.grow)}</button>`:''}
       <button class="ico-btn ${_cl.edit?'on':''}" onclick="clToggleEdit()" aria-pressed="${!!_cl.edit}" aria-label="Edit sentences" title="Edit sentences">${svgi(ICO.edit)}</button>
       ${_cl.tab==='prep'&&!_cl.edit?`<button class="sh-btn ${db.settings.prepKoOnly?'on':''}" onclick="togglePrepKo()" aria-pressed="${!!db.settings.prepKoOnly}" title="Play only the Korean during preparation — no English translations">KO only</button>`:''}
-      <label class="cl-size"><input type="range" min="10" max="40" step="5" value="${size}"
+      <label class="cl-size"><input type="range" min="10" max="${Math.max(40,c.sentences.length)}" step="${c.sentences.length>40?1:5}" value="${size}"
         oninput="document.getElementById('szLbl').textContent=this.value" onchange="clSetSize(this.value)"
         aria-label="Cluster size"><span><b id="szLbl">${size}</b> sentences</span></label>
     </div>
@@ -2576,7 +2927,7 @@ function renderClusterRun(){
         <button class="ico-btn" style="width:38px;height:38px" onclick="clAddSent()" aria-label="Add sentence" title="Add sentence">${svgi(ICO.plus)}</button>
       </div>
       <div class="row" style="margin-top:18px">
-        <button class="btn danger sm" onclick="deleteCluster()">${svgi(ICO.trash,'sic')}Delete this cluster</button>
+        <button class="btn danger sm" onclick="deleteCluster()">${svgi(ICO.trash,'sic')}${isFavCluster(c)?'Clear all favorites':'Delete this cluster'}</button>
       </div>
     </div>`
     :`<div class="snt-list" id="sntList">
@@ -2584,15 +2935,17 @@ function renderClusterRun(){
         const selCls=_cl.selMode?' selable'+(_cl.sel&&_cl.sel.has(i)?' sel':''):'';
         const rev=_cl.revealed&&_cl.revealed.has(i);
         const card=_cl.tab==='recall'
-          ?`<div class="snt recall${rev?' rev':''}${selCls}" id="snt-${i}" onclick="${_cl.selMode?`apPlayFrom(${i})`:`clRevealCard(${i})`}">
+          ?`<div class="snt recall favable${rev?' rev':''}${selCls}" id="snt-${i}" onclick="${_cl.selMode?`apPlayFrom(${i})`:`clRevealCard(${i})`}">
               ${selMark(i)}
               <p class="s-en-q">${esc(s.en)}</p>
               <p class="s-ko${rev?'':' hid'}">${rev?esc(s.ko):'•  •  •'}</p>
+              ${favMark(i,s)}
             </div>`
-          :`<div class="snt${selCls}" id="snt-${i}" onclick="apPlayFrom(${i})">
+          :`<div class="snt favable${selCls}" id="snt-${i}" onclick="apPlayFrom(${i})">
               ${selMark(i)}
               <p class="s-en">${esc(s.en)}</p>
               <p class="s-ko">${esc(s.ko)}</p>
+              ${favMark(i,s)}
             </div>`;
         return `<div class="swipe" data-i="${i}">
           <div class="swipe-del"><button type="button" class="del-act" onclick="event.stopPropagation();clDelStep(${i},this)">Delete</button></div>
@@ -2622,6 +2975,7 @@ function clAttachReorder(){
 function rowDown(e,w){
   if(e.button)return;
   if(e.target.closest('.del-act'))return; // the delete button runs its own two-step
+  if(e.target.closest('.favmark'))return; // the heart is a plain tap target, not a gesture start
   if(_drag.open&&_drag.open!==w)swipeClose(_drag.open); // only one row open at a time
   _drag.wrap=w;_drag.x0=e.clientX;_drag.y0=e.clientY;_drag.grabY=e.clientY;
   _drag.baseX=curX(sntOf(w));_drag.shift=0;
@@ -2692,7 +3046,7 @@ function clDelStep(i,btn){
   clearTimeout(_drag.armTimer);
   clRemoveSentence(i,btn.closest('.swipe'));
 }
-function clRemoveSentence(i,w){
+function clRemoveSentence(i,w,msg){
   const c=_cl.c;if(!c||!w)return;
   apStop();
   w.style.height=w.offsetHeight+'px';w.classList.add('removing');
@@ -2705,7 +3059,7 @@ function clRemoveSentence(i,w){
     _cl.sel=shift(_cl.sel);_cl.revealed=shift(_cl.revealed);
     _drag.open=null;
     save();uiSave();renderClusterRun();
-    toast('Sentence removed');
+    toast(msg||'Sentence removed');
   },300);
 }
 /* --- hold to reorder: the card follows the finger, neighbours FLIP around it --- */
@@ -2775,6 +3129,58 @@ function dragCommit(){
   }
   save();uiSave();renderClusterRun();
   toast('Order updated');
+}
+
+/* ---- favorites: a heart on every sentence, backed by its own cluster ---- */
+const FAV_TITLE='Favorites';
+function favCluster(){return db.clusters.find(c=>c.source==='favorites')||null}
+function favClusterEnsure(){
+  let c=favCluster();
+  if(!c){c=newCluster(FAV_TITLE,'favorites',[]);db.clusters.push(c)}
+  return c;
+}
+function isFavCluster(c){return !!c&&c.source==='favorites'}
+function favKey(s){return (s&&s.ko||'').trim()}
+function isFav(s){const c=favCluster();return !!c&&c.sentences.some(x=>favKey(x)===favKey(s))}
+function favSVG(on){return `<svg viewBox="0 0 24 24" fill="${on?'currentColor':'none'}" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICO.heart}</svg>`}
+function favMark(i,s){
+  /* inside Favorites every row is, by definition, a favourite — the heart is the way back out */
+  const on=isFavCluster(_cl.c)||isFav(s);
+  const lbl=on?'Remove from favorites':'Add to favorites';
+  return `<button type="button" class="favmark${on?' on':''}" aria-pressed="${on}" aria-label="${lbl}" title="${lbl}"
+    onclick="event.stopPropagation();favToggle(${i})">${favSVG(on)}</button>`;
+}
+function favBtnPaint(btn,on){
+  const lbl=on?'Remove from favorites':'Add to favorites';
+  btn.classList.toggle('on',on);
+  btn.setAttribute('aria-pressed',on?'true':'false');
+  btn.setAttribute('aria-label',lbl);btn.title=lbl;
+  btn.innerHTML=favSVG(on);
+}
+function favToggle(i){
+  const c=_cl.c;if(!c)return;
+  const s=c.sentences[i];if(!s)return;
+  if(isFavCluster(c)){ // un-hearting here drops the row out of the cluster entirely
+    const w=document.querySelector('#sntList .swipe[data-i="'+i+'"]');
+    if(w)clRemoveSentence(i,w,'Removed from favorites');
+    else{c.sentences.splice(i,1);save();uiSave();renderClusterRun();toast('Removed from favorites')}
+    return;
+  }
+  const f=favClusterEnsure(),k=favKey(s);
+  const at=f.sentences.findIndex(x=>favKey(x)===k);
+  if(at>=0){
+    f.sentences.splice(at,1);
+    if(f.size>f.sentences.length)f.size=f.sentences.length;
+    toast('Removed from favorites');
+  }else{
+    f.sentences.push({id:crypto.randomUUID(),ko:s.ko,en:s.en,miss:0});
+    f.size=Math.max(f.size||20,f.sentences.length); // keep new favourites inside the visible chunk
+    toast('Added to favorites');
+  }
+  save();
+  buzz(8);
+  const btn=document.querySelector('#snt-'+i+' .favmark');
+  if(btn)favBtnPaint(btn,at<0);
 }
 
 /* ---- multi-select: pick sentences Photos-style, playback loops just those ---- */
@@ -2912,6 +3318,14 @@ async function clAddSent(){
 }
 function deleteCluster(){
   const c=_cl.c;if(!c)return;
+  if(isFavCluster(c)){
+    const n=c.sentences.length;
+    if(!n){toast('No favorites yet');return}
+    if(!confirm('Remove all '+n+' favorite'+(n===1?'':'s')+'? This cannot be undone.'))return;
+    db.clusters=db.clusters.filter(x=>x!==c);save();
+    _cl={view:'list',c:null,tab:'prep',home:_cl.home||'reco'};
+    uiSave();toast('Favorites cleared');renderClusters();return;
+  }
   if(!confirm('Delete “'+c.title+'” and its '+c.sentences.length+' sentences? This cannot be undone.'))return;
   db.clusters=db.clusters.filter(x=>x!==c);save();
   _cl={view:'list',c:null,tab:'prep',home:c.source==='custom'?'mine':'reco'};
